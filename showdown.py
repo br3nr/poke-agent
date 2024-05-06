@@ -2,9 +2,13 @@ import asyncio
 import websockets
 import requests
 import json 
+import os 
 
-USERNAME = ""
-PASSWORD = ""
+from dotenv import load_dotenv
+load_dotenv()
+
+USERNAME = os.environ.get("SHOWDOWN_USERNAME")
+PASSWORD = os.environ.get("SHOWDOWN_PASSWORD")
 
 async def get_challenge_data(challstr):
     payload = {
@@ -33,8 +37,8 @@ async def showdown_client():
                 print(assert_str)
                 await websocket.send(assert_str)
 
-                search_battle = "|/challenge br3nr, gen7randombattle"
-                await websocket.send(search_battle)
+                #search_battle = "|/challenge br3nr, gen7randombattle"
+                #await websocket.send(search_battle)
 
 if __name__ == "__main__":
     asyncio.run(showdown_client())
