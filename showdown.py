@@ -3,6 +3,8 @@ import websockets
 import requests
 import json 
 import os 
+import time
+import re
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -25,23 +27,53 @@ async def get_challenge_data(challstr):
     data = json.loads(json_str[1:])
     return data
 
+
+async def prompt_and_send_message(websocket, msg):
+    user_input = input(msg)
+    await websocket.send(user_input)
+
+async def authenticate(websocket, message):
+    data = await get_challenge_data(message[10:])
+    assert_str = f"|/trn {USERNAME},0,{data['assertion']}"
+    await websocket.send(assert_str)
+    await asyncio.sleep(5)
+
 async def showdown_client():
     headers = {
         'User-Agent': 'PokeAgentv1'
     }
     url = 'wss://sim3.psim.us/showdown/websocket'
-    async with websockets.connect(url, extra_headers=headers) as websocket:
-        async for message in websocket:
-            print(message)
-            if "challstr" in message:
-                data = await get_challenge_data(message[10:])
-                assert_str = f"|/trn {USERNAME},0,{data['assertion']}" 
-                print(assert_str)
-                await websocket.send(assert_str)
-                # Uncomment to challenge a user to a battle
-                search_battle = "|/challenge br3nr, gen7randombattle"
-                await websocket.send(search_battle)
+    
+    battle_mode = False
+    battle_id = None
 
-if __name__ == "__main__":
-    asyncio.run(showdown_client())
+    async with websockets.connect(url, extra_headers=headers) as websocket:
+        while True:
+            try:
+                # Wait for any incoming message or a timeout
+                task = asyncio.wait_for(websocket.recv(), timeout=30)
+                message = await task
+                print(message)
+                if "challstr" in message:
+                    await authenticate(websocket, message)
+                    # Uncomment to challenge a user to a battle
+                    search_battle = "|/challenge br3nr, gen7randombattle"
+                    await websocket.send(search_battle)
+                elif message.startswith(">battle"):
+                    battle_mode = True
+                    print("the message:", message[1:])
+                    m = re.search(r'\d+$', str(message[1:]))
+                    if m:
+                        print(m.group(0))
+                elif battle_mode:
+                    print("battlemode on:", battle_id)
+                elif "|turn|" in message:
+                    await prompt_and_send_message(websocket, "Your move")
+                elif "error" in message:
+                    await prompt_and_send_message(websocket, "try again:")
+            except asyncio.TimeoutError:
+                # Handle the case where no message is received in 10 seconds
+                await prompt_and_send_message(websocket, "Timeout")
+
+asyncio.run(showdown_client())
 
