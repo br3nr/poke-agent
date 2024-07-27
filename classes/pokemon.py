@@ -1,4 +1,6 @@
-from typing import List, Dict
+from typing import List, Dict 
+import requests
+import asyncio
 
 
 class Pokemon:
@@ -34,6 +36,34 @@ class Pokemon:
         self.moves = moves
         self.item = item
         self.ability = ability
-
+    
         detail_arr = details.split(",")
         self.name = detail_arr[0].strip()
+
+    
+    def get_ability_info(self):
+        print(f"https://pokeapi.co/api/v2/pokemon/{self.name.lower()}")
+        resp_json = requests.get(f"https://pokeapi.co/api/v2/pokemon/{self.name.lower()}").json()
+        print(self.name, self.ability) 
+        for pokemon_ability in resp_json["abilities"]:
+            if pokemon_ability["ability"]["name"] == self.ability.lower():
+                ability_data = requests.get(pokemon_ability["ability"]["url"]).json()
+                for effect in ability_data["effect_entries"]:
+                    if effect["language"]["name"] == "en":
+                        return effect["effect"]
+
+        return "Could not find ability details"
+          
+
+    def get_pokemon_info(self, name: str):
+        resp = requests.get(f"https://pokeapi.co/api/v2/pokemon/{name}")
+        return resp.json()
+
+    def get_pokemon_type(self, name: str) -> str:
+        resp_json = requests.get(f"https://pokeapi.co/api/v2/pokemon/{name}").json()
+        types = []
+        for type_data in resp_json["types"]:
+            types.append(type_data["type"]["name"])
+
+        return str(types)
+        

@@ -87,18 +87,21 @@ async def showdown_client():
             elif str(message).startswith(">battle"):
                 turn_stats = str(message).split("\n")
                 battle_id = turn_stats[0][1:]
-                if str(message[:-1]).endswith("|turn|"):
+                if "|turn|" in turn_stats[len(turn_stats)-1]:
                     # Do some attack
                     turn += 2
                     payload = f"{battle_id}|/choose move 1|{turn}"
                     print(payload)
                     await websocket.send(payload)
-                elif str(message).endswith("|upkeep"):
+                elif str(message).endswith("|upkeep") and "faint" in str(message):
                     # p1 or p2 pokemon fainted
                     # TODO: refine detection
+                    # faint|p2a when other plaer
                     turn += 2
-                    payload = f"{battle_id}|/choose switch 2|{turn}"
-                    await websocket.send(payload)
+                    id = trainer.get_next_available()
+                    if id:
+                        payload = f"{battle_id}|/choose switch {id}|{turn}"
+                        await websocket.send(payload)
                 elif "|request|" in str(message) and "active" in str(message):
                     # get the player and team data
                     pokemon_stats = turn_stats[1].replace("|request|", "")
@@ -110,5 +113,8 @@ async def showdown_client():
                         team=team,
                     )
 
+                    p = trainer.get_active_pokemon()
+                    print(p.get_ability_info())
 
 asyncio.run(showdown_client())
+
