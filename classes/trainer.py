@@ -1,12 +1,13 @@
 from classes.pokemon import Pokemon
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 class Trainer:
-    def __init__(self, name: str, id: str, team: Optional[List[Pokemon]] = None):
+    def __init__(self, name: str, id: str, team: Optional[List[Pokemon]] = None, active_moves: Optional[List[Dict]] = None):
         self.name = name
         self.id = id
         self.team = team if team is not None else []
-
+        self.active_moves = active_moves
+    
     def get_active_pokemon(self) -> Optional[Pokemon]:
         for pokemon in self.team:
             print(pokemon.name)
