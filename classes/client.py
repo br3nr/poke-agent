@@ -19,29 +19,46 @@ class ShowdownClient:
         self.opponent = opponent
         self.turn = 0
         self.trainer = None
-        self.model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash-001", tools=[self.get_current_moves]
-        )
+        self.websocket = None
+        self.model = genai.GenerativeModel(model_name='gemini-1.5-flash-001', tools=[self.choose_move])
+    
+    def choose_move(self, move_name: str):
+        """Trigger the next move to be used"""
+        move_id = 0
+        moves = self.trainer.active_moves
+        for i, move in enumerate(moves):
+            if move_name == move["move"]:
+                move_id = i
+        print("Fetched move id", move_id)
+        return move_id+1
 
     def get_current_moves(self):
         """Gets the available moves for your active pokemon"""
         active_pokemon = self.trainer.get_active_pokemon()
         moves = self.trainer.active_moves
-        
+        move_str = ""
+
         for move in moves:
             move_name = move["move"].lower().replace(" ","-")
             move_url = f"https://pokeapi.co/api/v2/move/{move_name}"
-            move_data = requests.get(move_url).json()
-            for effect in move_data["effect_entries"]:
-                if effect["language"]["name"] == "en":
-                    print(effect["short_effect"])
-                    print("acc", move_data["accuracy"])
-                    print("class", move_data["damage_class"]["name"])
+            print(move_url)
+            try:
+                move_data = requests.get(move_url).json()
+                for effect in move_data["effect_entries"]:
+                    if effect["language"]["name"] == "en":
+                        print(effect["short_effect"])
+                        print("acc", move_data["accuracy"])
+                        print("class", move_data["damage_class"]["name"])
+                move_str += f"{move['move']}, "
+            except Exception as e:
+                pass
+        return move_str
+
 
     async def battle_loop(self, websocket, message):
         chat = self.model.start_chat(enable_automatic_function_calling=True)
         turn_stats = str(message).split("\n")
-        battle_id = turn_stats[0][1:]
+        self.battle_id = turn_stats[0][1:]
         if "|request|" in str(message): #and "active" in str(message):
             # get the player and team data
             try:
@@ -61,16 +78,33 @@ class ShowdownClient:
                     self.turn += 2
                     id = self.trainer.get_next_available()
                     if id:
-                        payload = f"{battle_id}|/choose switch {id}|{self.turn}"
+                        payload = f"{self.battle_id}|/choose switch {id}|{self.turn}"
                         await websocket.send(payload)
             except Exception as e:
                 print(e)
+
         elif "|turn|" in turn_stats[len(turn_stats) - 1]:
             # Do some attack
             self.turn += 2
-            payload = f"{battle_id}|/choose move 1|{self.turn}"
-            self.get_current_moves()
-            await websocket.send(payload)
+            print("\n\n\n\n\n")
+            chat = self.model.start_chat(enable_automatic_function_calling=True)
+            moves = self.get_current_moves() 
+            msg = f"""
+                You are in a pokemon battle. You must select a move. 
+                These are your moves: 
+                {moves}
+
+                You may now choose the move. Once you choose the move you will be given its int id. 
+
+                Return the single int id.
+            """
+            
+            re = chat.send_message(msg).text
+            
+            payload = f"{self.battle_id}|/choose move {int(re)}|{self.turn}"
+            
+            await self.websocket.send(payload)
+
         elif str(message).endswith("|upkeep") and "faint" in str(message):
             self.turn += 2
             # p1 or p2 pokemon fainted
@@ -124,17 +158,16 @@ class ShowdownClient:
         headers = {"User-Agent": "PokeAgentv1"}
         url = "wss://sim3.psim.us/showdown/websocket"
 
-
-        async with websockets.connect(url, extra_headers=headers) as websocket:
-            while True:
-                # Wait for any incoming message or a timeout
-                task = asyncio.wait_for(websocket.recv(), timeout=3000)
-                message = await task
-
-                if "challstr" in str(message):
-                    await self.authenticate(websocket, message)
-                    search_battle = f"|/challenge {self.opponent}, gen7randombattle"
-                    await websocket.send(search_battle)
-                elif str(message).startswith(">battle"):
-                    await self.battle_loop(websocket, message)
+        self.websocket = await websockets.connect(url, extra_headers=headers)
+     
+        while True:
+            # Wait for any incoming message or a timeout
+            task = asyncio.wait_for(self.websocket.recv(), timeout=3000)
+            message = await task
+            if "challstr" in str(message):
+                await self.authenticate(self.websocket, message)
+                search_battle = f"|/challenge {self.opponent}, gen7randombattle"
+                await self.websocket.send(search_battle)
+            elif str(message).startswith(">battle"):
+                await self.battle_loop(self.websocket, message)
 
