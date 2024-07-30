@@ -17,7 +17,7 @@ class Trainer:
 
     def get_next_available(self) -> int | None:
         for i, pokemon in enumerate(self.team):
-            if(pokemon.condition != "0 fnt"):
+            if(pokemon.condition != "0 fnt" and pokemon.active != True):
                 return i+1
         return None
 
