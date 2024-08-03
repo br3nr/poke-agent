@@ -65,10 +65,14 @@ class ShowdownClient:
         move_str = ""
         detailed_moves = []
         description = ""
-
+        
         for move in moves:
             move_name_fmt = move["move"].lower().replace(" ", "-")
-         
+
+            if "hidden-power" in move_name_fmt:
+                # TODO: Determine better way to handle edge cases 
+                move_name_fmt = "hidden-power"
+
             move_url = f"https://pokeapi.co/api/v2/move/{move_name_fmt}"
             print(move_url)
 
