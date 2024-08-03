@@ -2,7 +2,7 @@ from classes.pokemon import Pokemon
 from typing import List, Optional, Dict
 
 class Trainer:
-    def __init__(self, name: str, id: str, team: Optional[List[Pokemon]] = None, active_moves: Optional[List[Dict]] = None):
+    def __init__(self, name: str, id: str, team: List[Pokemon], active_moves: List[Dict]):
         self.name = name
         self.id = id
         self.team = team if team is not None else []

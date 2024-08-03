@@ -6,10 +6,13 @@ import os
 import json
 import google.generativeai as genai
 
+from rich import print
 from typing import List, Dict
+
 from classes.trainer import Trainer
 from classes.pokemon import Pokemon
-from rich import print 
+from utils.config import safety_filters
+from utils.helpers import get_challenge_data
 
 class ShowdownClient:
 
@@ -20,7 +23,9 @@ class ShowdownClient:
         self.trainer = None
         self.websocket = None
         self.model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash-001", tools=[self.choose_move]
+            model_name="gemini-1.5-flash-001",
+            tools=[self.choose_move],
+            safety_settings=safety_filters,
         )
         self.move_queue: List[str] = []
         self.battle_log: List[str] = []
@@ -29,6 +34,7 @@ class ShowdownClient:
         """Trigger the next move to be used"""
         move_id = 0
         moves = self.trainer.active_moves
+        print(moves)
         for i, move in enumerate(moves):
             if move_name == move["move"]:
                 move_id = i
@@ -36,25 +42,55 @@ class ShowdownClient:
         payload = f"{self.battle_id}|/choose move {move_id+1}"
         self.move_queue.append(payload)
 
+    def get_move_details(self, move_name: str):
+        move_api_name = move_name.lower().replace(" ", "-")
+        move_url = f"https://pokeapi.co/api/v2/move/{move_api_name}"
+        print(move_url)
+        move_data = requests.get(move_url).json()
+        for effect in move_data["effect_entries"]:
+            if effect["language"]["name"] == "en":
+                print(effect)
+
     def get_current_moves(self):
         """Gets the available moves for your active pokemon"""
         # TODO: Check move isnt disabled = True
         active_pokemon = self.trainer.get_active_pokemon()
         moves = self.trainer.active_moves
         move_str = ""
+        detailed_moves = []
+        description = ""
 
         for move in moves:
-            move_name = move["move"].lower().replace(" ", "-")
-            move_url = f"https://pokeapi.co/api/v2/move/{move_name}"
-            try:
-                move_data = requests.get(move_url).json()
-                for effect in move_data["effect_entries"]:
-                    if effect["language"]["name"] == "en":
-                        pass
-                move_str += f"{move['move']}, "
-            except Exception as e:
-                pass
-        return move_str
+            move_name_fmt = move["move"].lower().replace(" ", "-")
+            move_url = f"https://pokeapi.co/api/v2/move/{move_name_fmt}"
+            # try
+            move_data = requests.get(move_url).json()
+
+            move_name = move["move"]
+            damage_type = move_data["type"]["name"]
+            damage_class = move_data["damage_class"]["name"]
+            accuracy = move_data["accuracy"]
+            power = move_data["power"]
+
+            for effect in move_data["effect_entries"]:
+                if effect["language"]["name"] == "en":
+                    description = effect["effect"]  # short_effect available
+                    print(damage_type, damage_class, accuracy, power)
+
+            move_str += f"{move['move']}, "
+
+            detailed_moves.append(
+                {
+                    "name": move_name,
+                    "type": damage_type,
+                    "class": damage_class,
+                    "accuracy": accuracy,
+                    "power": power,
+                    "description": description,
+                }
+            )
+
+        return detailed_moves
 
     async def battle_loop(self, websocket, message):
         chat = self.model.start_chat(enable_automatic_function_calling=True)
@@ -80,18 +116,26 @@ class ShowdownClient:
                         payload = f"{self.battle_id}|/choose switch {id}"
                         print(payload)
                         await websocket.send(payload)
-            except Exception as e:
-                print(e)
-
+            except Exception:
+                print("E")
+                pass
         elif "|turn|" in turn_stats[len(turn_stats) - 1]:
             chat = self.model.start_chat(enable_automatic_function_calling=True)
             moves = self.get_current_moves()
+
+            # Run queries on the type of opposing pokemon
+            # What type do we have?
+
+            print(moves)
             msg = f"""
                 You are in a pokemon battle. You must select a move. 
                 These are your moves: 
                 {moves}
+                
+                You may now choose the move and call the function.
+                
+                After using the move, please tell me your move choice and why you used it.
 
-                You may now choose the move and call the function. Once complete, let me know what you chose.
             """
 
             response = chat.send_message(msg).text
@@ -99,25 +143,8 @@ class ShowdownClient:
             print(self.move_queue)
             await self.websocket.send(self.move_queue.pop())
 
-    async def get_challenge_data(self, challstr):
-        payload = {
-            "name": self.username,
-            "pass": self.password,
-            "challstr": challstr,
-        }
-        headers = {"User-Agent": "PokeAgentv1"}
-        uri = "https://play.pokemonshowdown.com/api/login"
-        response = requests.post(uri, data=payload, headers=headers)
-        json_str = response.content.decode("utf-8")
-        data = json.loads(json_str[1:])
-        return data
-
-    async def prompt_and_send_message(self, websocket, msg):
-        user_input = input(msg)
-        await websocket.send(user_input)
-
     async def authenticate(self, websocket, message):
-        data = await self.get_challenge_data(message[10:])
+        data = get_challenge_data(message[10:], self.username, self.password)
         assert_str = f"|/trn {self.username},0,{data['assertion']}"
         await websocket.send(assert_str)
         await asyncio.sleep(5)
