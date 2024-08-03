@@ -9,7 +9,7 @@ import google.generativeai as genai
 from typing import List, Dict
 from classes.trainer import Trainer
 from classes.pokemon import Pokemon
-
+from rich import print 
 
 class ShowdownClient:
 
@@ -22,6 +22,8 @@ class ShowdownClient:
         self.model = genai.GenerativeModel(
             model_name="gemini-1.5-flash-001", tools=[self.choose_move]
         )
+        self.move_queue: List[str] = []
+        self.battle_log: List[str] = []
 
     def choose_move(self, move_name: str):
         """Trigger the next move to be used"""
@@ -30,7 +32,9 @@ class ShowdownClient:
         for i, move in enumerate(moves):
             if move_name == move["move"]:
                 move_id = i
-        return move_id + 1
+
+        payload = f"{self.battle_id}|/choose move {move_id+1}"
+        self.move_queue.append(payload)
 
     def get_current_moves(self):
         """Gets the available moves for your active pokemon"""
@@ -87,16 +91,13 @@ class ShowdownClient:
                 These are your moves: 
                 {moves}
 
-                You may now choose the move. Once you choose the move you will be given its int id. 
-
-                Return the single int id.
+                You may now choose the move and call the function. Once complete, let me know what you chose.
             """
 
-            re = chat.send_message(msg).text
-
-            payload = f"{self.battle_id}|/choose move {int(re)}"
-            print(payload)
-            await self.websocket.send(payload)
+            response = chat.send_message(msg).text
+            print(f"[bold bright_yellow]{response}[/bold bright_yellow]")
+            print(self.move_queue)
+            await self.websocket.send(self.move_queue.pop())
 
     async def get_challenge_data(self, challstr):
         payload = {
