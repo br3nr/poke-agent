@@ -24,14 +24,17 @@ class ShowdownClient:
         self.websocket = None
         self.model = genai.GenerativeModel(
             model_name="gemini-1.5-flash-001",
-            tools=[self.choose_move],
+            tools=[self.choose_move, self.get_pokemon_details],
             safety_settings=safety_filters,
         )
         self.move_queue: List[str] = []
         self.battle_log: List[str] = []
 
+    # Tool
     def choose_move(self, move_name: str):
         """Trigger the next move to be used"""
+        print(f"[bold bright_blue]Agent triggered choose_move with input: {move_name}[/bold bright_blue]")
+
         move_id = 0
         moves = self.trainer.active_moves
         print(moves)
@@ -42,14 +45,17 @@ class ShowdownClient:
         payload = f"{self.battle_id}|/choose move {move_id+1}"
         self.move_queue.append(payload)
 
-    def get_move_details(self, move_name: str):
-        move_api_name = move_name.lower().replace(" ", "-")
-        move_url = f"https://pokeapi.co/api/v2/move/{move_api_name}"
-        print(move_url)
-        move_data = requests.get(move_url).json()
-        for effect in move_data["effect_entries"]:
-            if effect["language"]["name"] == "en":
-                print(effect)
+    # Tool
+    def get_pokemon_details(self, pokemon_name: str) -> str:
+        """Gets the details about one of the pokemon in your team"""
+        print(f"[bold bright_blue]Agent triggered get_pokemon_details with input: {pokemon_name}[/bold bright_blue]")
+        team = self.trainer.get_team()
+        for mon in team:
+            print(mon.name, pokemon_name)
+            if mon.name == pokemon_name:
+                return str(mon)
+    
+        return "Could not find pokemon"
 
     def get_current_moves(self):
         """Gets the available moves for your active pokemon"""
@@ -62,7 +68,10 @@ class ShowdownClient:
 
         for move in moves:
             move_name_fmt = move["move"].lower().replace(" ", "-")
+         
             move_url = f"https://pokeapi.co/api/v2/move/{move_name_fmt}"
+            print(move_url)
+
             # try
             move_data = requests.get(move_url).json()
 
@@ -75,7 +84,6 @@ class ShowdownClient:
             for effect in move_data["effect_entries"]:
                 if effect["language"]["name"] == "en":
                     description = effect["effect"]  # short_effect available
-                    print(damage_type, damage_class, accuracy, power)
 
             move_str += f"{move['move']}, "
 
@@ -120,27 +128,29 @@ class ShowdownClient:
                 print("E")
                 pass
         elif "|turn|" in turn_stats[len(turn_stats) - 1]:
+            print(message)
+
             chat = self.model.start_chat(enable_automatic_function_calling=True)
             moves = self.get_current_moves()
 
             # Run queries on the type of opposing pokemon
             # What type do we have?
+            
+            active_pokemon = self.trainer.get_active_pokemon().name
 
-            print(moves)
             msg = f"""
                 You are in a pokemon battle. You must select a move. 
-                These are your moves: 
+                You're active pokemon is {active_pokemon}. These are your moves: 
                 {moves}
                 
-                You may now choose the move and call the function.
+                Using the functions available, apporach the problem. 
                 
-                After using the move, please tell me your move choice and why you used it.
+                After using the move, please tell me your move choice and why you used it, as well as details about the pokemon.
 
             """
 
             response = chat.send_message(msg).text
             print(f"[bold bright_yellow]{response}[/bold bright_yellow]")
-            print(self.move_queue)
             await self.websocket.send(self.move_queue.pop())
 
     async def authenticate(self, websocket, message):
@@ -179,7 +189,6 @@ class ShowdownClient:
             # Wait for any incoming message or a timeout
             task = asyncio.wait_for(self.websocket.recv(), timeout=3000)
             message = await task
-            print(message)
 
             if "challstr" in str(message):
                 await self.authenticate(self.websocket, message)

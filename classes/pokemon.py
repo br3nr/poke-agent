@@ -66,4 +66,15 @@ class Pokemon:
             types.append(type_data["type"]["name"])
 
         return str(types)
-        
+    
+    def __str__(self):
+        return (f"Name: {self.name}\n"
+                f"ID: {self.ident}\n"
+                f"Details: {self.details}\n"
+                f"Condition: {self.condition}\n"
+                f"Active: {self.active}\n"
+                f"Stats: {self.stats}\n"
+                f"Moves: {', '.join(self.moves)}\n"
+                f"Item: {self.item}\n"
+                f"Ability: {self.ability}")
+
