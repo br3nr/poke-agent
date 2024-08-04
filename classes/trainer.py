@@ -20,6 +20,12 @@ class Trainer:
             if(pokemon.condition != "0 fnt" and pokemon.active != True):
                 return i+1
         return None
+    
+    def get_pokemon_id(self, pokemon_name: str) -> int:
+        for i, pokemon in enumerate(self.team):
+            if(pokemon.name == pokemon_name):
+                return i+1
+        return 0
 
     def get_team(self) -> List[Pokemon]:
         return self.team

@@ -2,29 +2,48 @@ import asyncio
 import websockets
 import requests
 import json
-import os
+import time
 import json
 import google.generativeai as genai
+import re
+import traceback
+from google.api_core.exceptions import ResourceExhausted
 
 from rich import print
 from typing import List, Dict
 
 from classes.trainer import Trainer
+from classes.opponent import Opponent
 from classes.pokemon import Pokemon
 from utils.config import safety_filters
-from utils.helpers import get_challenge_data
+from utils.helpers import (
+    get_challenge_data,
+    get_types,
+    get_pokemon_info,
+    get_damage_relations,
+)
+
 
 class ShowdownClient:
 
-    def __init__(self, username, password, opponent):
+    def __init__(self, username, password, opponent_name):
         self.username = username
         self.password = password
-        self.opponent = opponent
+        self.opponent_name = opponent_name
         self.trainer = None
+        self.opponent = Opponent(pid="p2a")
         self.websocket = None
         self.model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash-001",
-            tools=[self.choose_move, self.get_pokemon_details],
+            #model_name="gemini-1.5-flash-001",
+            model_name="gemini-1.5-pro",
+            tools=[
+                self.choose_move,
+                self.get_pokemon_details,
+                self.get_opponent_pokemon_details,
+                self.check_type_advantages,
+                self.get_team_details,
+                self.swap_pokemon
+            ],
             safety_settings=safety_filters,
         )
         self.move_queue: List[str] = []
@@ -33,7 +52,9 @@ class ShowdownClient:
     # Tool
     def choose_move(self, move_name: str):
         """Trigger the next move to be used"""
-        print(f"[bold bright_blue]Agent triggered choose_move with input: {move_name}[/bold bright_blue]")
+        print(
+            f"[bold bright_blue]Agent triggered choose_move with input: {move_name}[/bold bright_blue]"
+        )
 
         move_id = 0
         moves = self.trainer.active_moves
@@ -44,18 +65,65 @@ class ShowdownClient:
 
         payload = f"{self.battle_id}|/choose move {move_id+1}"
         self.move_queue.append(payload)
+        time.sleep(5)
+
+    def swap_pokemon(self, pokemon_name: str):
+        """Swap your current pokemon for a pokemon in your team"""
+        print(
+            f"[bold bright_blue]Agent triggered swap_pokemon with input: {pokemon_name}[/bold bright_blue]"
+        )
+        pokemon_id = self.trainer.get_pokemon_id(pokemon_name)
+        payload = f"{self.battle_id}|/choose switch {pokemon_id}"
+        self.move_queue.append(payload)
+        time.sleep(5)
+
+    def check_type_advantages(self, attack_type: str) -> str:
+        """Returns a list of move types that the provided attack_type is strong and weak against."""
+        time.sleep(5)
+        types =  get_damage_relations(attack_type)
+        print(
+            f"[bold bright_blue]Agent triggered get_type_advantages with input: {attack_type} returning: {types}[/bold bright_blue]"
+        )
+        return types 
+
+    def get_team_details(self, team_name: str = "team") -> str:
+        """Returns a list of types that the provided type is strong and weak against. Pass any variable to use this function."""
+        print(
+            f"[bold bright_blue]Agent triggered get_team_details with input: {team_name}[/bold bright_blue]"
+        )
+        team = self.trainer.get_team()
+        team_list = []
+        for mon in team:
+            if mon.condition != "0 fnt":
+                team_list.append(str(mon))
+
+        print(team_list)
+        time.sleep(5)
+        return str(team_list)
 
     # Tool
     def get_pokemon_details(self, pokemon_name: str) -> str:
         """Gets the details about one of the pokemon in your team"""
-        print(f"[bold bright_blue]Agent triggered get_pokemon_details with input: {pokemon_name}[/bold bright_blue]")
+        print(
+            f"[bold bright_blue]Agent triggered get_pokemon_details with input: {pokemon_name}[/bold bright_blue]"
+        )
         team = self.trainer.get_team()
         for mon in team:
             print(mon.name, pokemon_name)
             if mon.name == pokemon_name:
+                print(mon)
                 return str(mon)
-    
+        time.sleep(5)
         return "Could not find pokemon"
+
+    def get_opponent_pokemon_details(self, pokemon_name: str) -> str:
+        """Gets the details about the opponents pokemon"""
+        types = get_types(pokemon_name)
+        print(
+            f"[bold bright_blue]Agent triggered get_opponent_pokemon_details with input: {pokemon_name} and output: {types}[/bold bright_blue]"
+        )
+        time.sleep(5)
+        return f"The opponents {pokemon_name} is the following type: {types}"
 
     def get_current_moves(self):
         """Gets the available moves for your active pokemon"""
@@ -65,16 +133,18 @@ class ShowdownClient:
         move_str = ""
         detailed_moves = []
         description = ""
-        
+
         for move in moves:
             move_name_fmt = move["move"].lower().replace(" ", "-")
 
             if "hidden-power" in move_name_fmt:
-                # TODO: Determine better way to handle edge cases 
+                # TODO: Determine better way to handle edge cases
                 move_name_fmt = "hidden-power"
+            elif "return-102" in move_name_fmt:
+                move_name_fmt = "return"
 
             move_url = f"https://pokeapi.co/api/v2/move/{move_name_fmt}"
-            print(move_url)
+            print(f"[bold purple]Sending request: {move_url}[/bold purple]")
 
             # try
             move_data = requests.get(move_url).json()
@@ -104,10 +174,21 @@ class ShowdownClient:
 
         return detailed_moves
 
+    def process_battle_log(self, turn_stats):
+        for turn in turn_stats:
+            if "|switch|p2a:" in turn:
+                match = re.search(r"\bp2a: (\w+)", turn)
+                if match:
+                    pokemon_name = match.group(1)
+                    self.opponent.active_pokemon = pokemon_name
+
     async def battle_loop(self, websocket, message):
         chat = self.model.start_chat(enable_automatic_function_calling=True)
         turn_stats = str(message).split("\n")
         self.battle_id = turn_stats[0][1:]
+        
+#        payload = f"{self.battle_id}|/data gliscor"
+#        await self.websocket.send(payload)
         if "|request|" in str(message):  # and "active" in str(message):
             # get the player and team data
             try:
@@ -120,7 +201,7 @@ class ShowdownClient:
                         id=player_dict["side"]["id"],
                         team=team,
                         active_moves=player_dict["active"][0]["moves"],
-                    )
+                    )   
 
                 elif "forceSwitch" in player_dict:
                     id = self.trainer.get_next_available()
@@ -128,8 +209,9 @@ class ShowdownClient:
                         payload = f"{self.battle_id}|/choose switch {id}"
                         print(payload)
                         await websocket.send(payload)
-            except Exception:
-                print("E")
+            except Exception as e:
+                print(e)
+                traceback.print_exc()
                 pass
         elif "|turn|" in turn_stats[len(turn_stats) - 1]:
             print(message)
@@ -137,23 +219,45 @@ class ShowdownClient:
             chat = self.model.start_chat(enable_automatic_function_calling=True)
             moves = self.get_current_moves()
 
+            self.process_battle_log(turn_stats)
             # Run queries on the type of opposing pokemon
             # What type do we have?
-            
+            self.get_team_details()
+
             active_pokemon = self.trainer.get_active_pokemon().name
+            print("Opponent pok: ", self.opponent.active_pokemon)
 
             msg = f"""
                 You are in a pokemon battle. You must select a move. 
                 You're active pokemon is {active_pokemon}. These are your moves: 
                 {moves}
                 
-                Using the functions available, apporach the problem. 
+                You are currently fighting the opponents {self.opponent.active_pokemon}
                 
-                After using the move, please tell me your move choice and why you used it, as well as details about the pokemon.
+                This is the plan:
 
+                Plan:
+                1. Get your opponents details.
+                2. Get the details of your pokemon.
+                3. Get all of the type advantages.
+                4. Choose to either attack or swap to a different pokemon.
+
+                Do not go off prior experience to judge if a type is super effective or resistent to another type. You must only rely on this from the check_type_advantage function.
+
+                Once you have selected the move you can call the function.
+
+                Finally, what made you make your choice?
             """
-
-            response = chat.send_message(msg).text
+            
+            
+            response = None
+            while response is None:
+                try:
+                    response = chat.send_message(msg).text
+                except ResourceExhausted:
+                    print("[bold purple]Sleeping...[/bold purple]")
+                    time.sleep(5)
+                            
             print(f"[bold bright_yellow]{response}[/bold bright_yellow]")
             await self.websocket.send(self.move_queue.pop())
 
@@ -193,10 +297,10 @@ class ShowdownClient:
             # Wait for any incoming message or a timeout
             task = asyncio.wait_for(self.websocket.recv(), timeout=3000)
             message = await task
-
+            print(message)
             if "challstr" in str(message):
                 await self.authenticate(self.websocket, message)
-                search_battle = f"|/challenge {self.opponent}, gen7randombattle"
+                search_battle = f"|/challenge {self.opponent_name}, gen7randombattle"
                 await self.websocket.send(search_battle)
             elif str(message).startswith(">battle"):
                 await self.battle_loop(self.websocket, message)

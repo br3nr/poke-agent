@@ -1,6 +1,8 @@
-from typing import List, Dict 
+from typing import List, Dict
 import requests
 import asyncio
+from rich import print
+from utils.helpers import get_pokemon_info, get_types
 
 
 class Pokemon:
@@ -36,15 +38,16 @@ class Pokemon:
         self.moves = moves
         self.item = item
         self.ability = ability
-    
+
         detail_arr = details.split(",")
         self.name = detail_arr[0].strip()
+        self.types: List[str] = get_types(self.name, self.ident[4:])
 
-    
     def get_ability_info(self):
-        print(f"https://pokeapi.co/api/v2/pokemon/{self.name.lower()}")
-        resp_json = requests.get(f"https://pokeapi.co/api/v2/pokemon/{self.name.lower()}").json()
-        print(self.name, self.ability) 
+        url = f"https://pokeapi.co/api/v2/pokemon/{self.name.lower()}"
+        print(f"[bold purple]Sending request: {url}[/bold purple]")
+        resp_json = requests.get(url).json()
+
         for pokemon_ability in resp_json["abilities"]:
             if pokemon_ability["ability"]["name"] == self.ability.lower():
                 ability_data = requests.get(pokemon_ability["ability"]["url"]).json()
@@ -53,28 +56,27 @@ class Pokemon:
                         return effect["effect"]
 
         return "Could not find ability details"
-          
-
-    def get_pokemon_info(self, name: str):
-        resp = requests.get(f"https://pokeapi.co/api/v2/pokemon/{name}")
-        return resp.json()
 
     def get_pokemon_type(self, name: str) -> str:
-        resp_json = requests.get(f"https://pokeapi.co/api/v2/pokemon/{name}").json()
+        url = f"https://pokeapi.co/api/v2/pokemon/{name}"
+        print(f"[bold purple]Sending request: {url}[/bold purple]")
+        resp_json = requests.get(url).json()
         types = []
         for type_data in resp_json["types"]:
             types.append(type_data["type"]["name"])
 
         return str(types)
-    
-    def __str__(self):
-        return (f"Name: {self.name}\n"
-                f"ID: {self.ident}\n"
-                f"Details: {self.details}\n"
-                f"Condition: {self.condition}\n"
-                f"Active: {self.active}\n"
-                f"Stats: {self.stats}\n"
-                f"Moves: {', '.join(self.moves)}\n"
-                f"Item: {self.item}\n"
-                f"Ability: {self.ability}")
 
+    def __str__(self):
+        return (
+            f"Name: {self.name}\n"
+            f"ID: {self.ident}\n"
+            f"Details: {self.details}\n"
+            f"Condition: {self.condition}\n"
+            f"Active: {self.active}\n"
+            f"Stats: {self.stats}\n"
+            f"Moves: {', '.join(self.moves)}\n"
+            f"Item: {self.item}\n"
+            f"Ability: {self.ability}\n"
+            f"Type: {', '.join(self.types)}"
+        )

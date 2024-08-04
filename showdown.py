@@ -12,7 +12,7 @@ USERNAME = os.environ.get("SHOWDOWN_USERNAME")
 PASSWORD = os.environ.get("SHOWDOWN_PASSWORD")
 OPPONENT = "br3nr"
 
-client = ShowdownClient(username=USERNAME, password=PASSWORD, opponent=OPPONENT)
+client = ShowdownClient(username=USERNAME, password=PASSWORD, opponent_name=OPPONENT)
 api_key = os.environ.get("GOOGLE_API_KEY")
 genai.configure(api_key=api_key)
 
