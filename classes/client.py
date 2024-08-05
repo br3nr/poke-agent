@@ -34,15 +34,15 @@ class ShowdownClient:
         self.opponent = Opponent(pid="p2a")
         self.websocket = None
         self.model = genai.GenerativeModel(
-            #model_name="gemini-1.5-flash-001",
-            model_name="gemini-1.5-pro",
+            model_name="gemini-1.5-flash-001",
+            #model_name="gemini-1.5-pro",
             tools=[
-                self.choose_move,
+                #self.choose_move,
                 self.get_pokemon_details,
                 self.get_opponent_pokemon_details,
                 self.check_type_advantages,
                 self.get_team_details,
-                self.swap_pokemon
+                #self.swap_pokemon
             ],
             safety_settings=safety_filters,
         )
@@ -77,14 +77,17 @@ class ShowdownClient:
         self.move_queue.append(payload)
         time.sleep(5)
 
-    def check_type_advantages(self, attack_type: str) -> str:
-        """Returns a list of move types that the provided attack_type is strong and weak against."""
+    def check_type_advantages(self, pokemon_name: str) -> str:
+        """Takes the name of a pokemon. Returns the what types the pokemon is good and bad against."""
         time.sleep(5)
-        types =  get_damage_relations(attack_type)
+        types = get_types(pokemon_name=pokemon_name)
+        relations =  get_damage_relations(types)
+        response = f"Here are the resistances, weaknesses and immunities for {pokemon_name}.\nNOTE: Asterisk * represents double factor on the weakness or resistance.\n{relations}"
         print(
-            f"[bold bright_blue]Agent triggered get_type_advantages with input: {attack_type} returning: {types}[/bold bright_blue]"
+            f"[bold bright_blue]Agent triggered get_type_advantages with input: {pokemon_name} returning: {response}[/bold bright_blue]"
         )
-        return types 
+
+        return response 
 
     def get_team_details(self, team_name: str = "team") -> str:
         """Returns a list of types that the provided type is strong and weak against. Pass any variable to use this function."""
@@ -126,7 +129,7 @@ class ShowdownClient:
         return f"The opponents {pokemon_name} is the following type: {types}"
 
     def get_current_moves(self):
-        """Gets the available moves for your active pokemon"""
+        " ""Gets the available moves for your active pokemon"""
         # TODO: Check move isnt disabled = True
         active_pokemon = self.trainer.get_active_pokemon()
         moves = self.trainer.active_moves
@@ -141,8 +144,9 @@ class ShowdownClient:
                 # TODO: Determine better way to handle edge cases
                 move_name_fmt = "hidden-power"
             elif "return-102" in move_name_fmt:
+                # because it does up to 102, always in showdown 102 
                 move_name_fmt = "return"
-
+            
             move_url = f"https://pokeapi.co/api/v2/move/{move_name_fmt}"
             print(f"[bold purple]Sending request: {move_url}[/bold purple]")
 
@@ -179,7 +183,7 @@ class ShowdownClient:
             if "|switch|p2a:" in turn:
                 match = re.search(r"\bp2a: (\w+)", turn)
                 if match:
-                    pokemon_name = match.group(1)
+                    pokemon_name = match.1group(1)
                     self.opponent.active_pokemon = pokemon_name
 
     async def battle_loop(self, websocket, message):
@@ -228,27 +232,17 @@ class ShowdownClient:
             print("Opponent pok: ", self.opponent.active_pokemon)
 
             msg = f"""
-                You are in a pokemon battle. You must select a move. 
-                You're active pokemon is {active_pokemon}. These are your moves: 
-                {moves}
-                
-                You are currently fighting the opponents {self.opponent.active_pokemon}
-                
-                This is the plan:
+                You are a pro Pokémon analyst analyzing the current state of a Pokémon battle on Pokémon Showdown. Your task is to make a detailed analysis and provide a recommendation based on the facts obtained from the functions.
 
-                Plan:
-                1. Get your opponents details.
-                2. Get the details of your pokemon.
-                3. Get all of the type advantages.
-                4. Choose to either attack or swap to a different pokemon.
+                Your active Pokémon is {active_pokemon}. These are your moves: {moves}
 
-                Do not go off prior experience to judge if a type is super effective or resistent to another type. You must only rely on this from the check_type_advantage function.
+                You are currently facing the opponent’s {self.opponent.active_pokemon}
 
-                Once you have selected the move you can call the function.
+                Using all functions available to you, perform an analysis of the current game state.
+                What is the composition of the team, what is your pokemon resistant/weak too, what is the opponent resistant/weak too. 
 
-                Finally, what made you make your choice?
+                Perform a thorough analysis. Once complete, make a reccomendation on what should be done next.
             """
-            
             
             response = None
             while response is None:

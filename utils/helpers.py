@@ -4,6 +4,9 @@ from rich import print
 import re 
 from typing import List, Dict
 from requests.exceptions import JSONDecodeError
+
+
+
 def get_challenge_data(challstr, username, password):
     payload = {
         "name": username,
@@ -28,7 +31,6 @@ def get_types(pokemon_name, ident=None):
     types = []
     for t in pokemon_data["types"]:
         types.append(t["type"]["name"])
-        get_damage_relations(t["type"]["name"])
     return types
 
 def fix_name_format(name: str):
@@ -43,28 +45,70 @@ def get_pokemon_info(name: str):
     resp = requests.get(url)
     return resp.json()
 
-def get_damage_relations(attack_type: str):
-    url = f"https://pokeapi.co/api/v2/type/{attack_type}"
-    print(f"[bold purple]Sending request: {url}[/bold purple]")
-    data = requests.get(url).json()
-    damage_relations = data["damage_relations"]
+def get_damage_relations(attack_types: List[str]):
+    
+    damage_attack_dict = {}
+    damage_defense_dict = {}
 
-    super_effective_against = iterate_damage_relation(damage_relations, "double_damage_to")
-    vulnerable_to = iterate_damage_relation(damage_relations, "double_damage_from")
-    resistant_against = iterate_damage_relation(damage_relations, "half_damage_from")
-    not_very_effective_against = iterate_damage_relation(damage_relations, "half_damage_to")
-    immune_to = iterate_damage_relation(damage_relations, "no_damage_to")
-    immune_from = iterate_damage_relation(damage_relations, "no_damage_from")
+    for attack_type in attack_types:
+        url = f"https://pokeapi.co/api/v2/type/{attack_type}"
+        print(f"[bold purple]Sending request: {url}[/bold purple]")
+        data = requests.get(url).json()
+        damage_relations = data["damage_relations"]
 
-    return (
-        f"Type: {attack_type.capitalize()}\n\n"
-        f"Super effective against: {', '.join(super_effective_against)}\n"
-        #f"Vulnerable to: {', '.join(vulnerable_to)}\n"
-        #f"Resistant against: {', '.join(resistant_against)}\n"
-        f"Not very effective against: {', '.join(not_very_effective_against)}\n"
-        #f"Immune to: {', '.join(immune_to)}\n"
-        #f"Immune from: {', '.join(immune_from)}\n"
+        print(attack_type)
+        super_effectives = iterate_damage_relation(damage_relations, "double_damage_to")
+        vulnerable_to = iterate_damage_relation(damage_relations, "double_damage_from")
+        resistant_against = iterate_damage_relation(damage_relations, "half_damage_from")
+        not_very_effectives = iterate_damage_relation(damage_relations, "half_damage_to")
+        print("resist against:", resistant_against)
+        print("vulnerable to:", vulnerable_to)
+
+        for supers in super_effectives:
+            damage_attack_dict[supers] = damage_attack_dict.get(supers, 0) + 2
+
+        for supers in not_very_effectives:
+            damage_attack_dict[supers] = damage_attack_dict.get(supers, 0) - 2
+
+        for supers in vulnerable_to:
+            print("vulnerable to:", supers)
+            damage_defense_dict[supers] = damage_defense_dict.get(supers, 0) - 2
+
+        for supers in resistant_against:
+            print("resistent to:", supers)
+            damage_defense_dict[supers] = damage_defense_dict.get(supers, 0) + 2
+
+        immune_to = iterate_damage_relation(damage_relations, "no_damage_to")
+        immune_from = iterate_damage_relation(damage_relations, "no_damage_from")
+
+        for supers in immune_from:
+            damage_defense_dict[supers] = -8
+
+    
+    weaknesses = []
+    resistances = []
+    immunities = []
+
+    # Categorize each type based on its effectiveness
+    for type_, effectiveness in damage_defense_dict.items():
+        if effectiveness == -8:
+            immunities.append(type_)
+        elif effectiveness == -4:
+            weaknesses.append(f"{type_}*")
+        elif effectiveness == -2:
+            weaknesses.append(type_)
+        elif effectiveness == 2:
+            resistances.append(type_)
+        elif effectiveness == 4:
+            resistances.append("{type_}*")
+
+    relations = (
+        f"Weaknesses: {', '.join(sorted(weaknesses))}",
+        f"Resistances: , {', '.join(sorted(resistances))}",
+        f"Immunities: {', '.join(sorted(immunities))}"
     )
+
+    return relations
 
 def iterate_damage_relation(data: List[Dict], category: str):
     damage_relations = []
