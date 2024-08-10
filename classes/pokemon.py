@@ -2,7 +2,7 @@ from typing import List, Dict
 import requests
 import asyncio
 from rich import print
-from utils.helpers import get_pokemon_info, get_types
+from utils.helpers import get_pokemon_info, get_types, get_move_details
 
 
 class Pokemon:
@@ -35,9 +35,15 @@ class Pokemon:
         self.condition = condition
         self.active = active
         self.stats = stats
-        self.moves = moves
         self.item = item
         self.ability = ability
+
+        move_list = []
+        for move in moves:
+            move_data = get_move_details(move)
+            move_list.append({"name": move_data["name"], "type": move_data["type"]})    
+
+        self.moves = move_list
 
         detail_arr = details.split(",")
         self.name = detail_arr[0].strip()
@@ -68,14 +74,15 @@ class Pokemon:
         return str(types)
 
     def __str__(self):
+        formatted_moves = ", ".join(f"{move['name']} ({move['type']})" for move in self.moves)
+        
         return (
             f"Name: {self.name}\n"
             f"ID: {self.ident}\n"
             f"Details: {self.details}\n"
             f"Condition: {self.condition}\n"
-            f"Active: {self.active}\n"
             f"Stats: {self.stats}\n"
-            f"Moves: {', '.join(self.moves)}\n"
+            f"Moves: {formatted_moves}\n"
             f"Item: {self.item}\n"
             f"Ability: {self.ability}\n"
             f"Type: {', '.join(self.types)}"

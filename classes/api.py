@@ -40,7 +40,7 @@ class DexAPI:
 
     def get_move(self, name: str) -> dict:
         for move in self.all_data["moves"]:
-            if move["name"].lower() == name.lower():
+            if move["name"].lower().replace(" ", "").replace("-","") == name.lower().replace(" ", "").replace("-",""):
                 return move
         return {}
 

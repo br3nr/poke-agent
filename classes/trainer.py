@@ -10,7 +10,6 @@ class Trainer:
     
     def get_active_pokemon(self) -> Optional[Pokemon]:
         for pokemon in self.team:
-            print(pokemon.name)
             if pokemon.active:
                 return pokemon
         return None
@@ -23,6 +22,7 @@ class Trainer:
     
     def get_pokemon_id(self, pokemon_name: str) -> int:
         for i, pokemon in enumerate(self.team):
+            print(pokemon.name, pokemon_name)
             if(pokemon.name == pokemon_name):
                 return i+1
         return 0

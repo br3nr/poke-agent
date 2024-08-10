@@ -15,12 +15,15 @@ from typing import List, Dict
 from classes.trainer import Trainer
 from classes.opponent import Opponent
 from classes.pokemon import Pokemon
+from classes.api import DexAPI
+
 from utils.config import safety_filters
 from utils.helpers import (
     get_challenge_data,
     get_types,
     get_pokemon_info,
     get_damage_relations,
+    print_agent_function_call
 )
 
 
@@ -33,100 +36,67 @@ class ShowdownClient:
         self.trainer = None
         self.opponent = Opponent(pid="p2a")
         self.websocket = None
-        self.model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash-001",
-            #model_name="gemini-1.5-pro",
-            tools=[
-                #self.choose_move,
-                self.get_pokemon_details,
-                self.get_opponent_pokemon_details,
-                self.check_type_advantages,
-                self.get_team_details,
-                #self.swap_pokemon
-            ],
-            safety_settings=safety_filters,
-        )
         self.move_queue: List[str] = []
         self.battle_log: List[str] = []
 
     # Tool
     def choose_move(self, move_name: str):
         """Trigger the next move to be used"""
-        print(
-            f"[bold bright_blue]Agent triggered choose_move with input: {move_name}[/bold bright_blue]"
-        )
-
+        print_agent_function_call("choose_move", move_name)
         move_id = 0
         moves = self.trainer.active_moves
-        print(moves)
         for i, move in enumerate(moves):
             if move_name == move["move"]:
                 move_id = i
 
         payload = f"{self.battle_id}|/choose move {move_id+1}"
+        print("p:", payload)
         self.move_queue.append(payload)
-        time.sleep(5)
 
     def swap_pokemon(self, pokemon_name: str):
         """Swap your current pokemon for a pokemon in your team"""
-        print(
-            f"[bold bright_blue]Agent triggered swap_pokemon with input: {pokemon_name}[/bold bright_blue]"
-        )
-        pokemon_id = self.trainer.get_pokemon_id(pokemon_name)
+        print_agent_function_call("swap_pokemon", pokemon_name)
+        pokemon_id = self.trainer.get_pokemon_id(pokemon_name=pokemon_name)
         payload = f"{self.battle_id}|/choose switch {pokemon_id}"
+        print("p:", payload)
         self.move_queue.append(payload)
-        time.sleep(5)
 
     def check_type_advantages(self, pokemon_name: str) -> str:
         """Takes the name of a pokemon. Returns the what types the pokemon is good and bad against."""
-        time.sleep(5)
         types = get_types(pokemon_name=pokemon_name)
         relations =  get_damage_relations(types)
         response = f"Here are the resistances, weaknesses and immunities for {pokemon_name}.\nNOTE: Asterisk * represents double factor on the weakness or resistance.\n{relations}"
-        print(
-            f"[bold bright_blue]Agent triggered get_type_advantages with input: {pokemon_name} returning: {response}[/bold bright_blue]"
-        )
-
-        return response 
+        print_agent_function_call("check_type_advantages", pokemon_name, relations)
+        return relations 
 
     def get_team_details(self, team_name: str = "team") -> str:
         """Returns a list of types that the provided type is strong and weak against. Pass any variable to use this function."""
-        print(
-            f"[bold bright_blue]Agent triggered get_team_details with input: {team_name}[/bold bright_blue]"
-        )
         team = self.trainer.get_team()
         team_list = []
         for mon in team:
             if mon.condition != "0 fnt":
-                team_list.append(str(mon))
+                team_list.append({"name": mon.name, "type": mon.types})
 
-        print(team_list)
-        time.sleep(5)
+        print_agent_function_call("get_team_details", team_name, team_list)
         return str(team_list)
 
     # Tool
     def get_pokemon_details(self, pokemon_name: str) -> str:
         """Gets the details about one of the pokemon in your team"""
-        print(
-            f"[bold bright_blue]Agent triggered get_pokemon_details with input: {pokemon_name}[/bold bright_blue]"
-        )
         team = self.trainer.get_team()
         for mon in team:
-            print(mon.name, pokemon_name)
+            #print(mon.name, pokemon_name)
             if mon.name == pokemon_name:
-                print(mon)
+                print_agent_function_call("get_pokemon_details", pokemon_name, mon)
                 return str(mon)
-        time.sleep(5)
         return "Could not find pokemon"
 
     def get_opponent_pokemon_details(self, pokemon_name: str) -> str:
         """Gets the details about the opponents pokemon"""
         types = get_types(pokemon_name)
-        print(
-            f"[bold bright_blue]Agent triggered get_opponent_pokemon_details with input: {pokemon_name} and output: {types}[/bold bright_blue]"
-        )
-        time.sleep(5)
-        return f"The opponents {pokemon_name} is the following type: {types}"
+        details = f"{pokemon_name} {', '.join(types)} type pokemon."
+        print_agent_function_call("get_opponent_pokemon_details", pokemon_name, details)
+        return details
 
     def get_current_moves(self):
         " ""Gets the available moves for your active pokemon"""
@@ -172,10 +142,9 @@ class ShowdownClient:
                     "class": damage_class,
                     "accuracy": accuracy,
                     "power": power,
-                    "description": description,
+                    #"description": description,
                 }
             )
-
         return detailed_moves
 
     def process_battle_log(self, turn_stats):
@@ -183,11 +152,10 @@ class ShowdownClient:
             if "|switch|p2a:" in turn:
                 match = re.search(r"\bp2a: (\w+)", turn)
                 if match:
-                    pokemon_name = match.1group(1)
+                    pokemon_name = match.group(1)
                     self.opponent.active_pokemon = pokemon_name
 
     async def battle_loop(self, websocket, message):
-        chat = self.model.start_chat(enable_automatic_function_calling=True)
         turn_stats = str(message).split("\n")
         self.battle_id = turn_stats[0][1:]
         
@@ -211,50 +179,15 @@ class ShowdownClient:
                     id = self.trainer.get_next_available()
                     if id:
                         payload = f"{self.battle_id}|/choose switch {id}"
-                        print(payload)
                         await websocket.send(payload)
             except Exception as e:
-                print(e)
                 traceback.print_exc()
                 pass
         elif "|turn|" in turn_stats[len(turn_stats) - 1]:
-            print(message)
-
-            chat = self.model.start_chat(enable_automatic_function_calling=True)
-            moves = self.get_current_moves()
-
             self.process_battle_log(turn_stats)
-            # Run queries on the type of opposing pokemon
-            # What type do we have?
-            self.get_team_details()
-
-            active_pokemon = self.trainer.get_active_pokemon().name
-            print("Opponent pok: ", self.opponent.active_pokemon)
-
-            msg = f"""
-                You are a pro Pokémon analyst analyzing the current state of a Pokémon battle on Pokémon Showdown. Your task is to make a detailed analysis and provide a recommendation based on the facts obtained from the functions.
-
-                Your active Pokémon is {active_pokemon}. These are your moves: {moves}
-
-                You are currently facing the opponent’s {self.opponent.active_pokemon}
-
-                Using all functions available to you, perform an analysis of the current game state.
-                What is the composition of the team, what is your pokemon resistant/weak too, what is the opponent resistant/weak too. 
-
-                Perform a thorough analysis. Once complete, make a reccomendation on what should be done next.
-            """
-            
-            response = None
-            while response is None:
-                try:
-                    response = chat.send_message(msg).text
-                except ResourceExhausted:
-                    print("[bold purple]Sleeping...[/bold purple]")
-                    time.sleep(5)
-                            
-            print(f"[bold bright_yellow]{response}[/bold bright_yellow]")
+            self.main_agent_executor() 
             await self.websocket.send(self.move_queue.pop())
-
+    
     async def authenticate(self, websocket, message):
         data = get_challenge_data(message[10:], self.username, self.password)
         assert_str = f"|/trn {self.username},0,{data['assertion']}"
@@ -291,10 +224,101 @@ class ShowdownClient:
             # Wait for any incoming message or a timeout
             task = asyncio.wait_for(self.websocket.recv(), timeout=3000)
             message = await task
-            print(message)
             if "challstr" in str(message):
                 await self.authenticate(self.websocket, message)
                 search_battle = f"|/challenge {self.opponent_name}, gen7randombattle"
                 await self.websocket.send(search_battle)
             elif str(message).startswith(">battle"):
                 await self.battle_loop(self.websocket, message)
+
+    def main_agent_executor(self):
+
+        model = genai.GenerativeModel(
+            model_name="gemini-1.5-flash-001",
+            #model_name="gemini-1.5-pro",
+            tools=[
+                self.get_agent_analyis,
+                self.choose_move,
+                self.swap_pokemon
+            ],
+            generation_config={"temperature": 0},
+            safety_settings=safety_filters,
+        )
+        
+        chat = model.start_chat(enable_automatic_function_calling=True)
+
+        msg = f"""
+        
+        You are an AI agent part of a larger agentic system. The system is responsible for taking actions in a pokemon battle. 
+        Your task in the system is to orchestrate the other agents.
+        Once your orchestration is complete, you will execute the next action.
+        Your available actions are: 
+            1) Change pokemon
+            2) Execute move
+        """ 
+        
+        response = None
+        while response is None:
+            try:
+                response = chat.send_message(msg).text
+            except ResourceExhausted:
+                print("[bold purple]Sleeping...[/bold purple]")
+                time.sleep(15)
+                        
+        print(f"[bold bright_yellow]Orchestrator Agent\n{response}[/bold bright_yellow]")
+
+    def get_agent_analyis(self, value: str = ""):
+        """Analyses the current move and suggests the next move to make."""
+
+        model = genai.GenerativeModel(
+            model_name="gemini-1.5-flash-001",
+            #model_name="gemini-1.5-pro",
+            tools=[
+                self.get_pokemon_details,
+                self.get_opponent_pokemon_details,
+                self.get_team_details,
+                self.check_type_advantages,
+            ],
+            generation_config={"temperature": 0},
+            safety_settings=safety_filters,
+        )
+
+        chat = model.start_chat(enable_automatic_function_calling=True)
+        moves = self.get_current_moves()
+        active_pokemon = self.trainer.get_active_pokemon().name
+        print(moves)
+        msg = f"""
+            You are an AI agent part of a larger agentic system. The system is responsible for taking actions in a pokemon battle. 
+            Your task is to evaluate the current state of the battle and assess what the next action should be. 
+            Specifically, you will be looking to see if the next action should be to use a move or switch pokemon.
+            In your analysis, you must only use the knowledge available to you in the functions you can call. Do not rely on any pre existing knowledge.
+            Your analysis will be past to the next agent in the system, so format your response appropriately. 
+            Think carefully and take your time. 
+
+            Here are some considerations:
+                1) Is the pokemon you are up against strong against yours, or is it resistent against yours? If so, consider swapping.
+                2) Does your pokemon have any super effective moves against the opponent? If so, consider using it. 
+                3) Should you use any moves in preparation for a larger follow up move? 
+                4) If you decide to swap to another pokemon, you must first check your team composition. 
+                5) Check your other team, are there any pokemon that are super effective against your opponent?
+
+            These considerations are simple guidelines, use your best judgement.   
+
+            Your active Pokémon is {active_pokemon}. These are your moves: {moves}
+
+            You are currently facing the opponent’s {self.opponent.active_pokemon}
+
+            Perform your analysis below:
+        """ 
+        
+        response = None
+        while response is None:
+            try:
+                response = chat.send_message(msg).text
+            except ResourceExhausted:
+                print("[bold purple]Sleeping...[/bold purple]")
+                time.sleep(15)
+        
+        print(f"[bold purple]Analysis Agent\n{response}[/bold purple]")
+        return response
+
