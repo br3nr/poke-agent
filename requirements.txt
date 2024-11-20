@@ -3,3 +3,4 @@ google-generativeai
 langgraph
 langchain-google-genai
 langchain_core
+rich
