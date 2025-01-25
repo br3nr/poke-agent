@@ -1,0 +1,22 @@
+
+
+
+
+* 25-01-25
+
+Notes 
+
+The agent needs to be able to do the following shit:
+- See the current pokemon: moves, type, hp, etc 
+
++ Remove ALL AI related code 
++ Write code for testing each endpoint after authorised  (Do this in a loop)
+
+
+* Day 02 
+
+Write hardcoded flow to mimic LLM 
+
+Note down what reasoning steps are required 
+
+Write abstraction for calling endpoints

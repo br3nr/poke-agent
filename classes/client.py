@@ -25,6 +25,8 @@ from utils.helpers import (
     print_agent_function_call,
 )
 
+from json.decoder import JSONDecodeError
+
 class ShowdownClient:
 
     def __init__(self, username, password, opponent_name):
@@ -33,29 +35,6 @@ class ShowdownClient:
         self.opponent_name = opponent_name
         self.websocket = None
         self.battle_data = BattleData()
-        self.analysis_agent = AnalysisAgent()
-
-    # Tool
-    def choose_move(self, move_name: str):
-        """Trigger the next move to be used"""
-        print_agent_function_call("choose_move", move_name)
-        move_id = 0
-        moves = self.battle_data.trainer.active_moves
-        for i, move in enumerate(moves):
-            if move_name == move["move"]:
-                move_id = i
-
-        payload = f"{self.battle_data.battle_id}|/choose move {move_id+1}"
-        print("p:", payload)
-        self.battle_data.move_queue.append(payload)
-
-    def swap_pokemon(self, pokemon_name: str):
-        """Swap your current pokemon for a pokemon in your team"""
-        print_agent_function_call("swap_pokemon", pokemon_name)
-        pokemon_id = self.battle_data.trainer.get_pokemon_id(pokemon_name=pokemon_name)
-        payload = f"{self.battle_data.battle_id}|/choose switch {pokemon_id}"
-        print("p:", payload)
-        self.battle_data.move_queue.append(payload)
 
     def process_battle_log(self, turn_stats):
         for turn in turn_stats:
@@ -71,11 +50,14 @@ class ShowdownClient:
 
         #        payload = f"{self.battle_data.battle_id}|/data gliscor"
         #        await self.websocket.send(payload)
+        print(message)
         if "|request|" in str(message):  # and "active" in str(message):
             # get the player and team data
             try:
+                
                 pokemon_stats = turn_stats[1].replace("|request|", "")
                 player_dict = json.loads(pokemon_stats)
+                
                 if "active" in player_dict:
                     team = self.parse_pokemon(player_dict)
                     self.battle_data.trainer = Trainer(
@@ -84,18 +66,30 @@ class ShowdownClient:
                         team=team,
                         active_moves=player_dict["active"][0]["moves"],
                     )
-
                 elif "forceSwitch" in player_dict:
                     id = self.battle_data.trainer.get_next_available()
                     if id:
                         payload = f"{self.battle_data.battle_id}|/choose switch {id}"
                         await websocket.send(payload)
-            except Exception as e:
-                traceback.print_exc()
+
+            except JSONDecodeError as e:
+                print("exception ->", str(message), e)
                 pass
+
         elif "|turn|" in turn_stats[len(turn_stats) - 1]:
             self.process_battle_log(turn_stats)
-            self.main_agent_executor()
+            
+            
+            analysis_agent = AnalysisAgent()
+
+            print("\n\n\n##########\nCurrent moves:", analysis_agent.get_current_moves())
+            print("\n\n\n##########\nTeam details:", analysis_agent.get_team_details())
+            print("\n\n\n##########\nOpponent Details:", analysis_agent.get_opponent_pokemon_details(self.battle_data.opponent.active_pokemon))
+            print("\n\n\n##########\nPokemon Details:", analysis_agent.get_pokemon_details(self.battle_data.opponent.active_pokemon))
+            print("\n\n\n##########\nType Advantages:", analysis_agent.check_type_advantages(self.battle_data.opponent.active_pokemon))
+            
+
+
             await self.websocket.send(self.battle_data.move_queue.pop())
 
     async def authenticate(self, websocket, message):
@@ -141,40 +135,4 @@ class ShowdownClient:
             elif str(message).startswith(">battle"):
                 await self.battle_loop(self.websocket, message)
 
-    def main_agent_executor(self):
 
-        model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash-001",
-            # model_name="gemini-1.5-pro",
-            tools=[
-                self.analysis_agent.get_agent_analyis,  # TODO: add back in next commit
-                self.choose_move,
-                self.swap_pokemon,
-            ],
-            generation_config={"temperature": 0},
-            safety_settings=safety_filters,
-        )
-
-        chat = model.start_chat(enable_automatic_function_calling=True)
-
-        msg = f"""
-        
-        You are an AI agent part of a larger agentic system. The system is responsible for taking actions in a pokemon battle. 
-        Your task in the system is to orchestrate the other agents.
-        Once your orchestration is complete, you will execute the next action.
-        Your available actions are: 
-            1) Change pokemon
-            2) Execute move
-        """
-
-        response = None
-        while response is None:
-            try:
-                response = chat.send_message(msg).text
-            except ResourceExhausted:
-                print("[bold purple]Sleeping...[/bold purple]")
-                time.sleep(15)
-
-        print(
-            f"[bold bright_yellow]Orchestrator Agent\n{response}[/bold bright_yellow]"
-        )
