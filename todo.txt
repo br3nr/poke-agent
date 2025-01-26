@@ -13,10 +13,34 @@ The agent needs to be able to do the following shit:
 + Write code for testing each endpoint after authorised  (Do this in a loop)
 
 
-* Day 02 
+* 26-01-25
 
-Write hardcoded flow to mimic LLM 
+Reasoning Steps: 
+- I need to be able to see all of my pokemon
+- I need to see if my pokemons type is good against the opponent
+  - How deep do we go? ... keep it high level to start
+- I need to know what moves my pokemon has and the types, to see if they work well
+  - Do we do this in one step? 
+- I need to see the status effects or if they are fainted 
 
-Note down what reasoning steps are required 
+
++ Write hardcoded flow to mimic LLM 
++ Note down what reasoning steps are required for analysis
++ Implement Analysis Agent
++ Implement Battle Agent
++ Implement Reasoning Agent
+
+
+* 27-01-25
 
 Write abstraction for calling endpoints
+- not sure if useful 
+
+Manage state through:
+- Passing the previous choices 
+- Passing the previous moves in battle 
+
+Track enemies status effects
+Track enemies moves 
+Track enemies abilities 
+

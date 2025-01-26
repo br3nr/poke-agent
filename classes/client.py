@@ -15,6 +15,8 @@ from typing import List, Dict
 from classes.trainer import Trainer
 from classes.opponent import Opponent
 from classes.agents.analysis_agent import AnalysisAgent
+from classes.agents.decision_agent import DecisionAgent
+from classes.agents.battle_agent import BattleAgent
 from classes.pokemon import Pokemon
 from classes.api import DexAPI
 from classes.battle_data import BattleData
@@ -78,18 +80,12 @@ class ShowdownClient:
 
         elif "|turn|" in turn_stats[len(turn_stats) - 1]:
             self.process_battle_log(turn_stats)
-            
-            
             analysis_agent = AnalysisAgent()
-
-            print("\n\n\n##########\nCurrent moves:", analysis_agent.get_current_moves())
-            print("\n\n\n##########\nTeam details:", analysis_agent.get_team_details())
-            print("\n\n\n##########\nOpponent Details:", analysis_agent.get_opponent_pokemon_details(self.battle_data.opponent.active_pokemon))
-            print("\n\n\n##########\nPokemon Details:", analysis_agent.get_pokemon_details(self.battle_data.opponent.active_pokemon))
-            print("\n\n\n##########\nType Advantages:", analysis_agent.check_type_advantages(self.battle_data.opponent.active_pokemon))
-            
-
-
+            decision_agent = DecisionAgent()
+            battle_agent = BattleAgent()
+            analysis = analysis_agent.execute_agent()
+            decision = decision_agent.execute_agent(analysis)
+            battle_agent.execute_agent(decision)
             await self.websocket.send(self.battle_data.move_queue.pop())
 
     async def authenticate(self, websocket, message):

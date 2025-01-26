@@ -1,6 +1,6 @@
 from typing import List, Dict
 from classes.opponent import Opponent
-
+from classes.trainer import Trainer
 
 class SingletonMetaclass(type):
     """Metaclass Singleton Pattern"""
@@ -19,7 +19,7 @@ class BattleData(metaclass=SingletonMetaclass):
     """
 
     def __init__(self):
-        self.trainer = None
+        self.trainer: Trainer = None
         self.battle_log: List[str] = []
         self.move_queue: List[str] = []
         self.opponent = Opponent(pid="p2a")
