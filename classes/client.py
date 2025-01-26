@@ -1,33 +1,19 @@
 import asyncio
 import websockets
-import requests
 import json
-import time
-import json
-import google.generativeai as genai
 import re
-import traceback
-from google.api_core.exceptions import ResourceExhausted
-
+from json.decoder import JSONDecodeError
 from rich import print
 from typing import List, Dict
 
 from classes.trainer import Trainer
-from classes.opponent import Opponent
 from classes.agents.analysis_agent import AnalysisAgent
 from classes.agents.decision_agent import DecisionAgent
 from classes.agents.battle_agent import BattleAgent
 from classes.pokemon import Pokemon
-from classes.api import DexAPI
 from classes.battle_data import BattleData
+from utils.helpers import get_challenge_data
 
-from utils.config import safety_filters
-from utils.helpers import (
-    get_challenge_data,
-    print_agent_function_call,
-)
-
-from json.decoder import JSONDecodeError
 
 class ShowdownClient:
 
@@ -130,5 +116,4 @@ class ShowdownClient:
                 await self.websocket.send(search_battle)
             elif str(message).startswith(">battle"):
                 await self.battle_loop(self.websocket, message)
-
 

@@ -1,8 +1,7 @@
 from typing import List, Dict
 import requests
-import asyncio
 from rich import print
-from utils.helpers import get_pokemon_info, get_types, get_move_details
+from utils.helpers import get_types, get_move_details
 
 
 class Pokemon:

@@ -1,25 +1,13 @@
 
 from utils.config import safety_filters
 import google.generativeai as genai
-import asyncio
-import websockets
-import requests
-import json
 import time
-import json
 import google.generativeai as genai
-import re
-import traceback
 from google.api_core.exceptions import ResourceExhausted
 from classes.battle_data import BattleData
 from rich import print 
-from utils.helpers import (
-    get_challenge_data,
-    get_types,
-    get_pokemon_info,
-    get_damage_relations,
-    print_agent_function_call,
-)
+from utils.helpers import print_agent_function_call
+
 
 class BattleAgent:
 
