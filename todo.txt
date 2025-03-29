@@ -44,3 +44,11 @@ Track enemies status effects
 Track enemies moves 
 Track enemies abilities 
 
+* 29-03-25
+
+Where does all the time go? 
+
++ Implement langgraph state passing 
+- Put battle data into the state
+- Track history 
+

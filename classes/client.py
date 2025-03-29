@@ -67,13 +67,13 @@ class ShowdownClient:
 
         elif "|turn|" in turn_stats[len(turn_stats) - 1]:
             self.process_battle_log(turn_stats)
-            state = SharedState(analysis="", reasoning="", query="")
+            state = SharedState(decision="", analysis="")
             analysis_agent = AnalysisAgent()
             decision_agent = DecisionAgent()
             battle_agent = BattleAgent()
-            analysis = analysis_agent.execute_agent(state)
-            decision = decision_agent.execute_agent(analysis["analysis"])
-            battle_agent.execute_agent(decision)
+            state = analysis_agent.execute_agent(state)
+            state = decision_agent.execute_agent(state)
+            battle_agent.execute_agent(state)
             await self.websocket.send(self.battle_data.move_queue.pop())
 
     async def authenticate(self, websocket, message):
