@@ -4,7 +4,7 @@ from rich import print
 import re
 from typing import List, Dict
 from requests.exceptions import JSONDecodeError
-from classes.api import DexAPI
+from classes.dex.dex_api import DexAPI
 
 dex = DexAPI(gen="sv")
 

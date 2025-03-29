@@ -1,7 +1,6 @@
 from classes.pokemon import Pokemon
 from typing import List, Optional, Dict
 
-
 class Opponent:
 
     def __init__(self, pid: str):
@@ -12,3 +11,4 @@ class Opponent:
 
     def update_active_pokemon(self, name: str):
         self.active_pokemon = name
+
