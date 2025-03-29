@@ -57,7 +57,7 @@ def get_types(pokemon_name, ident=None):
         if ident:
             print("[red]Retrying with ident[/red]")
             pokemon_data = get_pokemon_info(ident)
-
+    print(pokemon_data)
     return pokemon_data["types"]
 
 

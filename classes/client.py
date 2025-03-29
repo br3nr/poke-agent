@@ -12,6 +12,7 @@ from classes.agents.decision_agent import DecisionAgent
 from classes.agents.battle_agent import BattleAgent
 from classes.pokemon import Pokemon
 from classes.battle_data import BattleData
+from classes.sharedstate import SharedState
 from utils.helpers import get_challenge_data
 
 
@@ -66,11 +67,12 @@ class ShowdownClient:
 
         elif "|turn|" in turn_stats[len(turn_stats) - 1]:
             self.process_battle_log(turn_stats)
+            state = SharedState(analysis="", reasoning="", query="")
             analysis_agent = AnalysisAgent()
             decision_agent = DecisionAgent()
             battle_agent = BattleAgent()
-            analysis = analysis_agent.execute_agent()
-            decision = decision_agent.execute_agent(analysis)
+            analysis = analysis_agent.execute_agent(state)
+            decision = decision_agent.execute_agent(analysis["analysis"])
             battle_agent.execute_agent(decision)
             await self.websocket.send(self.battle_data.move_queue.pop())
 

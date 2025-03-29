@@ -7,15 +7,22 @@ from classes.battle_data import BattleData
 from rich import print
 from classes.agent_toolkit import AgentToolkit
 
+
+import os
+from dotenv import load_dotenv
+from typing_extensions import TypedDict
+from pydantic import BaseModel, Field
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langgraph.graph import StateGraph, END
+from classes.sharedstate import SharedState
+
 class AnalysisAgent:
-    
     def __init__(self):
         self.toolkit = AgentToolkit()
         self.battle_data = BattleData()
-    def execute_agent(self):
-        model = genai.GenerativeModel(
+        self.llm = genai.GenerativeModel(
             model_name="gemini-1.5-flash-001",
-            # model_name="gemini-1.5-pro",
             tools=[
                 self.toolkit.get_pokemon_details,
                 self.toolkit.get_current_moves,
@@ -27,7 +34,21 @@ class AnalysisAgent:
             safety_settings=safety_filters,
         )
 
-        chat = model.start_chat(enable_automatic_function_calling=True)
+        self.graph = StateGraph(SharedState)  # Create a new graph
+
+        self.graph.add_node("get_analysis", self.get_analysis)
+
+        # Define entry point and edges
+        self.graph.set_entry_point("get_analysis")
+
+        # Compile the graph
+        self.executor = self.graph.compile()
+
+    def get_analysis(self, state: SharedState):
+
+        #user_input = state["input"]
+        #response = self.llm.invoke(user_input)
+        chat = self.llm.start_chat(enable_automatic_function_calling=True)
 
         msg = f""" 
         You are in a team of professional pokemon players. Together you are united in a competitive battle in Pokemon Showdown.
@@ -39,10 +60,12 @@ class AnalysisAgent:
         Your task is simple, but vital. Put together the facts you have obtained about the current state of the battle, and output it in a concise format. 
         
         Your team need to know the following: 
-            - Details about the
-            - What their resistances / weaknesses are
-            - Who you have available, their moves and resistances / weaknesses
-            - Who else is in your team
+            - Details about the current pokemon. What their moves are, the damage class (status or attack), damage type, etc.
+            - What their resistances / weaknesses are. 
+            - Who you have available on your team, their moves and resistances / weaknesss. 
+            - The opponent, their moves, what their type is, weakness etc.
+
+        It is important that you are as detailed as you can be about each of these.
         
         Do not make any interpretations about the data, or suggestions. You must purely reconsturct the data in a concise format. 
         """
@@ -56,8 +79,13 @@ class AnalysisAgent:
                 time.sleep(15)
 
         print(
-            f"[bold bright_yellow]Orchestrator Agent\n{response}[/bold bright_yellow]"
+            f"[bold bright_yellow]Analysis Agent\n{response}[/bold bright_yellow]"
         )
-        
-        return response
+         
+        state["analysis"] = response
+        return state 
+
+
+    def execute_agent(self, state: SharedState):
+        return self.executor.invoke(state)
 
