@@ -12,6 +12,7 @@ from classes.agents.decision_agent import DecisionAgent
 from classes.agents.battle_agent import BattleAgent
 from classes.pokemon import Pokemon
 from classes.battle_data import BattleData
+from classes.agents.history_agent import HistoryAgent
 from classes.sharedstate import SharedState
 from utils.helpers import get_challenge_data
 
@@ -32,14 +33,14 @@ class ShowdownClient:
                 if match:
                     pokemon_name = match.group(1)
                     self.battle_data.opponent.active_pokemon = pokemon_name
+    decision: str
 
-    async def battle_loop(self, websocket, message):
+    async def battle_loop(self, websocket, message, state: SharedState): 
         turn_stats = str(message).split("\n")
         self.battle_data.battle_id = turn_stats[0][1:]
 
         #        payload = f"{self.battle_data.battle_id}|/data gliscor"
         #        await self.websocket.send(payload)
-        print(message)
         if "|request|" in str(message):  # and "active" in str(message):
             # get the player and team data
             try:
@@ -67,13 +68,19 @@ class ShowdownClient:
 
         elif "|turn|" in turn_stats[len(turn_stats) - 1]:
             self.process_battle_log(turn_stats)
-            state = SharedState(decision="", analysis="")
             analysis_agent = AnalysisAgent()
             decision_agent = DecisionAgent()
+            history_agent = HistoryAgent()
             battle_agent = BattleAgent()
             state = analysis_agent.execute_agent(state)
             state = decision_agent.execute_agent(state)
             battle_agent.execute_agent(state)
+            hist = history_agent.execute_agent(message)
+             
+            history_arr = state["history"]
+            history_arr.append(hist["summary"])
+            state["history"] = history_arr
+
             await self.websocket.send(self.battle_data.move_queue.pop())
 
     async def authenticate(self, websocket, message):
@@ -108,6 +115,7 @@ class ShowdownClient:
 
         self.websocket = await websockets.connect(url, extra_headers=headers)
 
+        state = SharedState(decision="", analysis="", history=[])
         while True:
             # Wait for any incoming message or a timeout
             task = asyncio.wait_for(self.websocket.recv(), timeout=3000)
@@ -117,5 +125,5 @@ class ShowdownClient:
                 search_battle = f"|/challenge {self.opponent_name}, gen7randombattle"
                 await self.websocket.send(search_battle)
             elif str(message).startswith(">battle"):
-                await self.battle_loop(self.websocket, message)
+                await self.battle_loop(self.websocket, message, state)
 

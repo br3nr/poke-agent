@@ -21,7 +21,7 @@ class AnalysisAgent:
         self.toolkit = AgentToolkit()
         self.battle_data = BattleData()
         self.llm = genai.GenerativeModel(
-            model_name="gemini-1.5-flash-001",
+            model_name="gemini-2.0-flash-lite",
             tools=[
                 self.toolkit.get_pokemon_details,
                 self.toolkit.get_current_moves,
@@ -66,6 +66,8 @@ class AnalysisAgent:
 
         It is important that you are as detailed as you can be about each of these.
         
+        Address your team in the response.
+
         Do not make any interpretations about the data, or suggestions. You must purely reconsturct the data in a concise format. 
         """
 

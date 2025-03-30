@@ -50,5 +50,26 @@ Where does all the time go?
 
 + Implement langgraph state passing 
 - Put battle data into the state
-- Track history 
+
+
+* 230-03-25
++ Track history 
+
+
+
+
+
+* Problematic API Calls
+Unown-M
+Furfrou-Pharaoh
+Rotom-Mow
+Vivillon-Polar
+Rotom-Wash
+Rotom-Heat
+Rotom-Frost
+Rotom-Fan
+
+
+
+- 1.5x bonus if you use a same type attack bonus 
 

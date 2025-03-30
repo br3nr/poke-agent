@@ -12,6 +12,8 @@ USERNAME = os.environ.get("SHOWDOWN_USERNAME")
 PASSWORD = os.environ.get("SHOWDOWN_PASSWORD")
 OPPONENT = "br3nr"
 
+print("\nStarting poke-agent-v1...\n")
+
 client = ShowdownClient(username=USERNAME, password=PASSWORD, opponent_name=OPPONENT)
 api_key = os.environ.get("GOOGLE_API_KEY")
 genai.configure(api_key=api_key)

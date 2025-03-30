@@ -23,7 +23,7 @@ class BattleAgent:
         self.toolkit = AgentToolkit()
         self.battle_data = BattleData()
         self.llm = genai.GenerativeModel(
-            model_name="gemini-1.5-flash-001",
+            model_name="gemini-2.0-flash-lite",
             # model_name="gemini-1.5-pro",
             tools=[
                 self.choose_move,
@@ -55,6 +55,8 @@ class BattleAgent:
             The Captain will now give you his thought process and decision. 
             Your job is to execute their plan.
 
+            Address your team in the response.
+            
             Captains deliberation: '{state["decision"]}'
         """
 
@@ -67,7 +69,7 @@ class BattleAgent:
                 print("[bold purple]Sleeping...[/bold purple]")
                 time.sleep(15)
         print(
-            f"[bold bright_red]Orchestrator Agent\n{response}[/bold bright_red]"
+            f"[bold bright_red]Battle Agent\n{response}[/bold bright_red]"
         )
         
         return state
