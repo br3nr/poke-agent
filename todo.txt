@@ -52,12 +52,16 @@ Where does all the time go?
 - Put battle data into the state
 
 
-* 230-03-25
+* 23-03-25
 + Track history 
 
+* 23-04-25
++ Pass correct data to the agent about opponent (type weakness)
+also fixed a few promppting bugs 
 
-
-
+- Manage pokemon forms 
+  - Could send the request to the dex api or seperately with some logic
+- fix weird bug in analysis agent where they write 2 sentences
 
 * Problematic API Calls
 Unown-M
@@ -68,8 +72,6 @@ Rotom-Wash
 Rotom-Heat
 Rotom-Frost
 Rotom-Fan
-
-
 
 - 1.5x bonus if you use a same type attack bonus 
 

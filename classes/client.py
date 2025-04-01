@@ -2,6 +2,7 @@ import asyncio
 import websockets
 import json
 import re
+import traceback
 from json.decoder import JSONDecodeError
 from rich import print
 from typing import List, Dict
@@ -63,7 +64,7 @@ class ShowdownClient:
                         await websocket.send(payload)
 
             except JSONDecodeError as e:
-                print("exception ->", str(message), e)
+                traceback.print_exc()
                 pass
 
         elif "|turn|" in turn_stats[len(turn_stats) - 1]:

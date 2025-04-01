@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from rich import print
 from google.api_core.exceptions import ResourceExhausted
 import google.generativeai as genai
-
+from textwrap import dedent
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langgraph.graph import StateGraph, END
@@ -45,31 +45,34 @@ class AnalysisAgent:
 
     def get_analysis(self, state: SharedState):
 
-        #user_input = state["input"]
-        #response = self.llm.invoke(user_input)
         chat = self.llm.start_chat(enable_automatic_function_calling=True)
 
-        msg = f""" 
-        You are in a team of professional pokemon players. Together you are united in a competitive battle in Pokemon Showdown.
-        You have been given the researcher tole in the team. Your job, is to collect the facts that are available to you through your available functions.
-        
-        Your current pokemon is {self.battle_data.trainer.get_active_pokemon().name}
-        You are currently facing off against a {self.battle_data.opponent.active_pokemon}.
+        msg = dedent(f""" 
+            **Team Analysis Report**
 
-        Your task is simple, but vital. Put together the facts you have obtained about the current state of the battle, and output it in a concise format. 
-        
-        Your team need to know the following: 
-            - Details about the current pokemon. What their moves are, the damage class (status or attack), damage type, etc.
-            - What their resistances / weaknesses are. 
-            - Who you have available on your team, their moves and resistances / weaknesss. 
-            - The opponent, their moves, what their type is, weakness etc.
+            You are the researcher in a professional Pokémon battle team. Your job is to gather and report all available facts about the battle.  
 
-        It is important that you are as detailed as you can be about each of these.
-        
-        Address your team in the response.
+            Your current pokemon is {self.battle_data.trainer.get_active_pokemon().name}
+            You are currently facing off against a {self.battle_data.opponent.active_pokemon}.
 
-        Do not make any interpretations about the data, or suggestions. You must purely reconsturct the data in a concise format. 
-        """
+            ### **Your Task:**
+            1. Use the available tools to collect detailed information.
+            2. List **all** retrieved data in a structured format.
+            3. Do **not** summarize, interpret, or omit any details.
+
+            ---
+
+            ### **What You Must Gather:**
+            - **Your Pokémon Details**: Call `get_pokemon_details` on the active Pokémon.
+            - **Your Pokémon’s Available Moves**: Call `get_current_moves`.
+            - **Opponent’s Pokémon Details**: Call `get_opponent_pokemon_details` on the opposing Pokémon.
+            - **Type Matchups & Advantages**: Call `check_type_advantages` for the active Pokémon.
+            - **Your Team Details**: Call `get_team_details` to list all available team members.
+
+            **You must call each function and include all retrieved information in your response.**  
+
+            Begin your report now."""
+        )
 
         response = None
         while response is None:

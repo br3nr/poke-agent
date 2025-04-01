@@ -58,10 +58,10 @@ class DecisionAgent:
             1) Attack with one of the current moves
             2) Switch pokemon
 
-        You should rely only on the information provided in the analysis. It is imperrative that you do not use pre-existing knowledge.
-        For example, you should ONLY rely on the type details provided by the analysis agent. Do NOT assume any weaknesses or advantages.
+        You should rely on the information provided in the analysis. It is imperrative that you only use common knowledge where relevant.
+        You may draw conclusions from the data you are shown.
         Take into account the previos moves you have made as well. These will be critical in your decision making.
-        It is important that you factor in future play.
+        It is important that you factor in future play and your previous moves.
         Make sure you think through it carefully. 
         
         Address your team in the response.
