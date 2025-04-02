@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@pkmn/dex": "^0.9.32",
+    "express": "^5.1.0"
+  }
+}

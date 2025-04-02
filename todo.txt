@@ -72,6 +72,6 @@ Rotom-Wash
 Rotom-Heat
 Rotom-Frost
 Rotom-Fan
-
+Meowstic
 - 1.5x bonus if you use a same type attack bonus 
 

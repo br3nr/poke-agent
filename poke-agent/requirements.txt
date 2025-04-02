@@ -1,0 +1,8 @@
+python-dotenv
+google-cloud-aiplatform
+google-generativeai
+langgraph
+langchain-google-genai
+langchain_core
+websockets
+rich

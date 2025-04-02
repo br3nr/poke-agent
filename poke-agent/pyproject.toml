@@ -1,0 +1,16 @@
+[project]
+name = "poke-agent"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "google-cloud-aiplatform>=1.77.0",
+    "google-generativeai>=0.8.3",
+    "langchain-core>=0.3.30",
+    "langchain-google-genai>=2.0.9",
+    "langgraph>=0.2.64",
+    "python-dotenv>=1.0.1",
+    "rich>=13.9.4",
+    "websockets==13.1",
+]
