@@ -33,10 +33,18 @@ class DexAPI:
         return response.json()
 
     def get_pokemon(self, name: str) -> dict:
-        for pokemon in self.all_data["pokemon"]:
-            if pokemon["name"].lower() == name.lower():
-                return pokemon
+        parts = name.split("-")
+        
+        while parts:
+            attempt_name = "-".join(parts)  # Try the full name, then progressively shorter versions
+            print("Attempting ", attempt_name.lower())
+            for pokemon in self.all_data["pokemon"]:
+                if pokemon["name"].lower() == attempt_name.lower():
+                    return pokemon
+            parts.pop()  # Remove the last part and try again
+        
         return {}
+
 
     def get_move(self, name: str) -> dict:
         for move in self.all_data["moves"]:

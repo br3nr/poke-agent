@@ -41,17 +41,21 @@ class AgentToolkit():
         """Gets the details about the opponents pokemon"""
         types = get_types(pokemon_name)
         details = f"The opponets {pokemon_name} is a {' and '.join(types)} type pokemon."
+        details += f"\n{self.check_type_advantages(pokemon_name)}"
         print_agent_function_call("get_opponent_pokemon_details", pokemon_name, details)
+        
         return details
 
+
     def get_team_details(self, team_name: str = "team") -> str:
-        """Returns a list of types that the provided type is strong and weak against. Pass any variable to use this function."""
+        """Returns all of the pokemon in the team"""
         team = self.battle_data.trainer.get_team()
         team_list = []
         for mon in team:
             if mon.condition != "0 fnt" or mon.name != self.battle_data.trainer.get_active_pokemon().name:
                 team_list.append({"name": mon.name, "type": mon.types})
-
+       
+        print(str(team_list))
         print_agent_function_call("get_team_details", team_name, team_list)
         return str(team_list)
 

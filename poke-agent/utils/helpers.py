@@ -9,6 +9,7 @@ from classes.dex.dex_api import DexAPI
 dex = DexAPI(gen="sv")
 
 def print_agent_function_call(fn_name: str, fn_input: str, fn_output: str = "N/A"):
+    
     print(
         f"[bold blue]\nPoke Agent Triggered: {fn_name}\nInput: {fn_input}\nOutput:{fn_output}\n[/bold blue]"
     )
@@ -57,7 +58,9 @@ def get_types(pokemon_name, ident=None):
         if ident:
             print("[red]Retrying with ident[/red]")
             pokemon_data = get_pokemon_info(ident)
-
+    if len(pokemon_data) == 0:
+        print(pokemon_name)
+        print(pokemon_data)
     return pokemon_data["types"]
 
 
