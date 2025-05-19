@@ -63,13 +63,10 @@ class Pokemon:
         return "Could not find ability details"
 
     def get_pokemon_type(self, name: str) -> str:
-        url = f"https://pokeapi.co/api/v2/pokemon/{name}"
+        url = f"http://localhost:3000/pokemon?name={name}"
         print(f"[bold purple]Sending request: {url}[/bold purple]")
         resp_json = requests.get(url).json()
-        types = []
-        for type_data in resp_json["types"]:
-            types.append(type_data["type"]["name"])
-
+        types = resp_json["types"]
         return str(types)
 
     def __str__(self):

@@ -14,27 +14,31 @@ def print_agent_function_call(fn_name: str, fn_input: str, fn_output: str = "N/A
         f"[bold blue]\nPoke Agent Triggered: {fn_name}\nInput: {fn_input}\nOutput:{fn_output}\n[/bold blue]"
     )
 
-
 def get_move_details(move: str):
     if "hidden-power" in move:
-        # TODO: Determine better way to handle edge cases
         move = "hidden-power"
     elif "return102" in move:
-        # because it does up to 102, always in showdown 102 
         move = "return"
     elif "hiddenpower" in move:
         move = "hiddenpower"
 
-    move_data = dex.get_move(move)
+    try:
+        response = requests.get("http://localhost:3000/move", params={"name": move})
+        response.raise_for_status()
+        move_data = response.json()
+    except requests.RequestException as e:
+        print(f"Error fetching move: {e}")
+        return None
 
     return {
-        "name": move_data["name"],
+        "name": move_data["moveName"],
         "type": move_data["type"].lower(),
         "class": move_data["category"],
         "accuracy": move_data["accuracy"],
-        "power": move_data["power"],
-        "description": move_data["description"],
+        "power": move_data["basePower"],
+        "description": move_data.get("desc", ""),
     }
+
 
 
 def get_challenge_data(challstr, username, password):
