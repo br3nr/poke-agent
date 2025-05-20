@@ -3,13 +3,12 @@ import { Dex } from '@pkmn/dex';
 
 const app = express();
 const port = 3000;
-
 app.get('/pokemon', (req, res) => {
-    const name = req.query.name;
-    if (!name) return res.status(400).json({ error: 'Pls provide pokemon name in query' });
+    const pokemon = req.query.pokemon;
+    if (!pokemon) return res.status(400).json({ error: 'Must provide pokemon in query' });
 
-    const species = Dex.species.get(name);
-    if (!species) return res.status(404).json({ error: `'${name}' not found` });
+    const species = Dex.species.get(pokemon);
+    if (!species) return res.status(404).json({ error: `'${pokemon}' not found` });
 
     res.json({
         name: species.name,
@@ -20,27 +19,41 @@ app.get('/pokemon', (req, res) => {
     });
 });
 
-app.get('/move', (req, res) => {
-    const name = req.query.name;
-    if (!name) return res.status(400).json({ error: 'Pls provide move name in query' });
+app.get('/ability', (req, res) => {
+    const ability = req.query.ability;
+    if (!ability) return res.status(400).json({ error: 'Must provide ability in query' });
 
-    const move = Dex.moves.get(name);
-    if (!move) return res.status(404).json({ error: `'${name}' not found` });
+    const abilityData = Dex.abilities.get(ability);
+    if (!abilityData) return res.status(404).json({ error: `'${ability}' not found` });
 
     res.json({
-        accuracy: move.accuracy,
-        basePower: move.basePower,
-        category: move.category,
-        moveName: move.name,
-        pp: move.pp,
-        flags: move.flags,
-        critRatio: move.critRatio,
-        type: move.type,
-        desc: move.desc,
-        shortDesc: move.shortDesc,
-        condition: move.condition,
-        priority: move.priority,
-        isZ: move.isZ
+        desc: abilityData.desc,
+        shortDesc: abilityData.shortDesc,
+        flags: abilityData.flags,
+    });
+});
+
+app.get('/move', (req, res) => {
+    const move = req.query.move;
+    if (!move) return res.status(400).json({ error: 'Must provide move in query' });
+
+    const moveData = Dex.moves.get(move);
+    if (!moveData) return res.status(404).json({ error: `'${move}' not found` });
+
+    res.json({
+        accuracy: moveData.accuracy,
+        basePower: moveData.basePower,
+        category: moveData.category,
+        moveName: moveData.name,
+        pp: moveData.pp,
+        flags: moveData.flags,
+        critRatio: moveData.critRatio,
+        type: moveData.type,
+        desc: moveData.desc,
+        shortDesc: moveData.shortDesc,
+        condition: moveData.condition,
+        priority: moveData.priority,
+        isZ: moveData.isZ
     });
 });
 
