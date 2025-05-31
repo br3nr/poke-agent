@@ -40,6 +40,7 @@ class ShowdownClient:
             # Wait for any incoming message or a timeout
             task = asyncio.wait_for(self.websocket.recv(), timeout=3000)
             message = await task
+            print(message)
             if "challstr" in str(message):
                 await self.authenticate(self.websocket, message)
                 search_battle = f"|/challenge {self.opponent_name}, gen7randombattle"
@@ -61,13 +62,10 @@ class ShowdownClient:
     async def battle_loop(self, websocket, message, state: SharedState): 
         turn_stats = str(message).split("\n")
         self.battle_data.battle_id = turn_stats[0][1:]
-
-        #        payload = f"{self.battle_data.battle_id}|/data gliscor"
-        #        await self.websocket.send(payload)
         if "|request|" in str(message):  # and "active" in str(message):
             # get the player and team data
             try:
-                
+                print("Received request, making Trainer")
                 pokemon_stats = turn_stats[1].replace("|request|", "")
                 player_dict = json.loads(pokemon_stats)
                 
@@ -88,19 +86,19 @@ class ShowdownClient:
             except JSONDecodeError as e:
                 traceback.print_exc()
                 pass
-
-        elif "|turn|" in turn_stats[len(turn_stats) - 1]:
+        elif "|turn|" in turn_stats[len(turn_stats) - 1] and self.battle_data.trainer:
             self.process_battle_log(turn_stats)
-            print(message)
-            analysis_agent = AnalysisAgent()
-            decision_agent = DecisionAgent()
-            history_agent = HistoryAgent()
-            battle_agent = BattleAgent()
+        
+        if ("|request|" in str(message) or "|turn|" in str(message)) and  self.battle_data.trainer:
+            analysis_agent = AnalysisAgent(self.battle_data)
+            decision_agent = DecisionAgent(self.battle_data)
+            history_agent = HistoryAgent(self.battle_data)
+            battle_agent = BattleAgent(self.battle_data)
             state = analysis_agent.execute_agent(state)
             state = decision_agent.execute_agent(state)
             battle_agent.execute_agent(state)
             hist = history_agent.execute_agent(message)
-             
+                
             history_arr = state["history"]
             history_arr.append(hist["summary"])
             state["history"] = history_arr

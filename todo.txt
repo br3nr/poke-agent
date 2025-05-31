@@ -75,3 +75,12 @@ Rotom-Fan
 Meowstic
 - 1.5x bonus if you use a same type attack bonus 
 
+
+31-05-25 
+
+I have implemented the DexAPI in node, as there is a sick package that solves the issues where API calls dont work due to weird wording.
+
+- finish dex api
+- simplifi battle data
+- fix battleid error
+- fix pokemon opponent not being sent to the analysis agent

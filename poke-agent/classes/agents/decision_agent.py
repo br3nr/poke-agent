@@ -17,10 +17,10 @@ from classes.agent_toolkit import AgentToolkit
 from classes.sharedstate import SharedState
 
 class DecisionAgent:
-    def __init__(self):
+    def __init__(self, battle_data: BattleData):
 
-        self.toolkit = AgentToolkit()
-        self.battle_data = BattleData()
+        self.toolkit = AgentToolkit(battle_data)
+        self.battle_data = battle_data
         self.llm = genai.GenerativeModel(
             model_name='gemini-2.0-flash-thinking-exp-01-21',
             safety_settings=safety_filters,

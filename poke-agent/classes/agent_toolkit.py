@@ -13,6 +13,8 @@ import traceback
 from google.api_core.exceptions import ResourceExhausted
 from classes.battle_data import BattleData
 from rich import print
+from classes.dex_client import DexAPIClient
+from classes.models import AbilityData, PokemonData, MoveData
 
 from utils.helpers import (
     get_challenge_data,
@@ -24,8 +26,9 @@ from utils.helpers import (
 
 class AgentToolkit():
     
-    def __init__(self):
-        self.battle_data = BattleData()
+    def __init__(self, battle_data: BattleData):
+        self.battle_data = battle_data
+        self.dex = DexAPIClient()
 
     def get_pokemon_details(self, pokemon_name: str) -> str:
         """Gets the details about one of the pokemon in your team"""
@@ -68,50 +71,28 @@ class AgentToolkit():
         return relations
 
     def get_current_moves(self):
-        " " "Gets the available moves for your active pokemon" ""
-        # TODO: Check move isnt disabled = True
-        active_pokemon = self.battle_data.trainer.get_active_pokemon()
+        """Gets the available moves for your active Pokémon."""
         moves = self.battle_data.trainer.active_moves
-        move_str = ""
         detailed_moves = []
-        description = ""
 
         for move in moves:
-            move_name_fmt = move["move"].lower().replace(" ", "-")
-
-            if "hidden-power" in move_name_fmt:
-                # TODO: Determine better way to handle edge cases
-                move_name_fmt = "hidden-power"
-            elif "return-102" in move_name_fmt:
-                # because it does up to 102, always in showdown 102
-                move_name_fmt = "return"
-
-            move_url = f"https://pokeapi.co/api/v2/move/{move_name_fmt}"
-            print(f"[bold purple]Sending request: {move_url}[/bold purple]")
-
-            # try
-            move_data = requests.get(move_url).json()
+            if move.get("disabled"):
+                continue  # skip disabled moves
 
             move_name = move["move"]
-            damage_type = move_data["type"]["name"]
-            damage_class = move_data["damage_class"]["name"]
-            accuracy = move_data["accuracy"]
-            power = move_data["power"]
+            move_data = self.dex.get_filtered_move(move_name)
 
-            for effect in move_data["effect_entries"]:
-                if effect["language"]["name"] == "en":
-                    description = effect["effect"]  # short_effect available
+            if not move_data:
+                continue
 
-            move_str += f"{move['move']}, "
+            detailed_moves.append({
+                "name": move_name,
+                "type": move_data.type,
+                "class": move_data.category,       
+                "accuracy": move_data.accuracy,
+                "power": move_data.basePower,
+                "description": move_data.shortDesc,
+                "pp": move_data.priority,
+            })
 
-            detailed_moves.append(
-                {
-                    "name": move_name,
-                    "type": damage_type,
-                    "class": damage_class,
-                    "accuracy": accuracy,
-                    "power": power,
-                    # "description": description,
-                }
-            )
         return detailed_moves

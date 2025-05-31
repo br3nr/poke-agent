@@ -24,8 +24,8 @@ class BattleLog(TypedDict):
     summary: str
 
 class HistoryAgent:
-    def __init__(self):
-        self.toolkit = AgentToolkit()
+    def __init__(self, battle_data: BattleData):
+        self.toolkit = AgentToolkit(battle_data)
         self.battle_data = BattleData()
         self.llm = genai.GenerativeModel(
             model_name="gemini-2.0-flash-lite",
@@ -48,9 +48,6 @@ class HistoryAgent:
         #user_input = state["input"]
         #response = self.llm.invoke(user_input)
         chat = self.llm.start_chat()
-
-
-
 
         msg = dedent(""" 
             You are an AI designed to process Pokémon battle logs into a structured, concise, and unambiguous format. 

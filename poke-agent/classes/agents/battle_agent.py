@@ -18,10 +18,10 @@ from classes.sharedstate import SharedState
 from utils.helpers import print_agent_function_call
 
 class BattleAgent:
-    def __init__(self):
+    def __init__(self, battle_data: BattleData):
 
-        self.toolkit = AgentToolkit()
-        self.battle_data = BattleData()
+        self.toolkit = AgentToolkit(battle_data)
+        self.battle_data = battle_data
         self.llm = genai.GenerativeModel(
             model_name="gemini-2.0-flash-lite",
             # model_name="gemini-1.5-pro",

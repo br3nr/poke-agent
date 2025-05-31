@@ -17,11 +17,11 @@ from classes.agent_toolkit import AgentToolkit
 from classes.sharedstate import SharedState
 
 class AnalysisAgent:
-    def __init__(self):
-        self.toolkit = AgentToolkit()
-        self.battle_data = BattleData()
+    def __init__(self, battle_data: BattleData):
+        self.toolkit = AgentToolkit(battle_data)
+        self.battle_data = battle_data
         self.llm = genai.GenerativeModel(
-            model_name="gemini-2.0-flash-lite",
+            model_name="gemini-2.5-flash-preview-05-20",
             tools=[
                 self.toolkit.get_pokemon_details,
                 self.toolkit.get_current_moves,
@@ -64,8 +64,8 @@ class AnalysisAgent:
 
             ### **What You Must Gather:**
             - **Your Pokémon Details**: Call `get_pokemon_details` on the active Pokémon.
-            - **Your Pokémon’s Available Moves**: Call `get_current_moves`.
-            - **Opponent’s Pokémon Details**: Call `get_opponent_pokemon_details` on the opposing Pokémon.
+            - **Your Pokémon's Available Moves**: Call `get_current_moves`.
+            - **Opponent's Pokémon Details**: Call `get_opponent_pokemon_details` on the opposing Pokémon.
             - **Type Matchups & Advantages**: Call `check_type_advantages` for the active Pokémon.
             - **Your Team Details**: Call `get_team_details` to list all available team members.
 

@@ -3,6 +3,7 @@ import { Dex } from '@pkmn/dex';
 
 const app = express();
 const port = 3000;
+
 app.get('/pokemon', (req, res) => {
     const pokemon = req.query.pokemon;
     if (!pokemon) return res.status(400).json({ error: 'Must provide pokemon in query' });
@@ -10,14 +11,17 @@ app.get('/pokemon', (req, res) => {
     const species = Dex.species.get(pokemon);
     if (!species) return res.status(404).json({ error: `'${pokemon}' not found` });
 
+    const abilitiesList = Object.values(species.abilities);
+
     res.json({
         name: species.name,
         types: species.types,
         baseStats: species.baseStats,
-        abilities: species.abilities,
+        abilities: abilitiesList,
         weight: species.weightkg
     });
 });
+
 
 app.get('/ability', (req, res) => {
     const ability = req.query.ability;
