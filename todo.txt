@@ -84,3 +84,22 @@ I have implemented the DexAPI in node, as there is a sick package that solves th
 - simplifi battle data
 - fix battleid error
 - fix pokemon opponent not being sent to the analysis agent
+
+
+
+21-09-25
+
+Damn 4 months? Lets finish this.
+
+The goal:
+- make bot able to run to battle end without breaking
+
+... 
+
+perhaps if I read above i would realise the bugs to fix
+
+the goal: 
+- fix opponent bug
+
+Ok fixed opponent bug and added opponent analysis details
+However there is a weird websocket disconnect bug I will need to address
