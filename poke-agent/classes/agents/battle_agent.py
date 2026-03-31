@@ -1,97 +1,165 @@
-import os
-import time
-from dotenv import load_dotenv
-from typing_extensions import TypedDict
-from pydantic import BaseModel, Field
+"""
+BattleAgent - The Team Battler
+
+Executes the decision made by the DecisionAgent.
+Translates the captain's instructions into a poke-env BattleOrder.
+
+This agent parses the decision text directly without needing an LLM,
+since the DecisionAgent outputs structured commands like:
+- "USE MOVE: <move_name>"
+- "SWITCH TO: <pokemon_name>"
+"""
+
+import re
 from rich import print
-from google.api_core.exceptions import ResourceExhausted
-import google.generativeai as genai
+from typing import Optional
 
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
-from langgraph.graph import StateGraph, END
+from poke_env.battle import Battle
+from poke_env.player import Player
+from poke_env.player.battle_order import BattleOrder
 
-from utils.config import safety_filters
-from classes.battle_data import BattleData
-from classes.agent_toolkit import AgentToolkit
 from classes.sharedstate import SharedState
-from utils.helpers import print_agent_function_call
+from classes.agent_toolkit import print_agent_function_call
+
 
 class BattleAgent:
-    def __init__(self, battle_data: BattleData):
+    def __init__(self, battle: Battle):
+        self.battle = battle
+        self.selected_order: Optional[BattleOrder] = None
 
-        self.toolkit = AgentToolkit(battle_data)
-        self.battle_data = battle_data
-        self.llm = genai.GenerativeModel(
-            model_name="gemini-2.0-flash-lite",
-            # model_name="gemini-1.5-pro",
-            tools=[
-                self.choose_move,
-                self.swap_pokemon,
-            ],
-            generation_config={"temperature": 0},
-            safety_settings=safety_filters,
-        )
+    def execute_agent(self, state: SharedState) -> Optional[BattleOrder]:
+        """Parse the decision and create a battle order."""
+        decision = state.get("decision", "")
 
+        # Try to parse "USE MOVE: <move_name>"
+        move_match = re.search(r"USE MOVE:\s*(\w+)", decision, re.IGNORECASE)
+        if move_match:
+            move_name = move_match.group(1)
+            self._choose_move(move_name)
+            return self.selected_order
 
-        self.graph = StateGraph(SharedState)  # Create a new graph
-        self.graph.add_node("select_move", self.select_move)
-        self.graph.set_entry_point("select_move")
-        self.executor = self.graph.compile()
+        # Try to parse "SWITCH TO: <pokemon_name>"
+        switch_match = re.search(r"SWITCH TO:\s*(\w+)", decision, re.IGNORECASE)
+        if switch_match:
+            pokemon_name = switch_match.group(1)
+            self._swap_pokemon(pokemon_name)
+            return self.selected_order
 
-    def select_move(self, state: SharedState):
-        
-        chat = self.llm.start_chat(enable_automatic_function_calling=True)
-        
-        msg = f"""
-            
-            You are in a team of professional pokemon players. You are in a competitive battle in Pokemon Showdown.
-            In your team, you have a researcher and a captain. The researcher and captain have deliberated.
-            The Captain will now give you his thought process and decision. 
-            Your job is to execute their plan.
-
-            Address your team in the response.
-            
-            Captains deliberation: '{state["decision"]}'
-        """
-
-        response = None
-        while response is None:
-            try:
-                response = chat.send_message(msg).text
-                print(response)
-            except ResourceExhausted:
-                print("[bold purple]Sleeping...[/bold purple]")
-                time.sleep(15)
+        # Fallback: try to find any move name mentioned
         print(
-            f"[bold bright_red]Battle Agent\n{response}[/bold bright_red]"
+            "[bold yellow]Could not parse decision, attempting fallback...[/bold yellow]"
         )
-        
-        return state
+        for move in self.battle.available_moves:
+            if move.id.lower() in decision.lower():
+                self._choose_move(move.id)
+                return self.selected_order
 
-    # Tool
-    def choose_move(self, move_name: str):
-        """Trigger the next move to be used"""
+        # Last resort: use first available move
+        if self.battle.available_moves:
+            fallback_move = self.battle.available_moves[0]
+            print(f"[bold yellow]Using fallback move: {fallback_move.id}[/bold yellow]")
+            self.selected_order = Player.create_order(fallback_move)
+            return self.selected_order
+
+        # If no moves, try to switch
+        if self.battle.available_switches:
+            fallback_pokemon = self.battle.available_switches[0]
+            print(
+                f"[bold yellow]Using fallback switch: {fallback_pokemon.species}[/bold yellow]"
+            )
+            self.selected_order = Player.create_order(fallback_pokemon)
+            return self.selected_order
+
+        return None
+
+    def _choose_move(self, move_name: str) -> str:
+        """Select a move to use in battle."""
         print_agent_function_call("choose_move", move_name)
-        move_id = 0
-        moves = self.battle_data.trainer.active_moves
-        for i, move in enumerate(moves):
-            if move_name == move["move"]:
-                move_id = i
 
-        payload = f"{self.battle_data.battle_id}|/choose move {move_id+1}"
-        print("p:", payload)
-        self.battle_data.move_queue.append(payload)
+        # Normalize move name for comparison
+        normalized_input = self._normalize_name(move_name)
 
-    def swap_pokemon(self, pokemon_name: str):
-        """Swap your current pokemon for a pokemon in your team"""
+        # Find the move in available moves
+        for move in self.battle.available_moves:
+            if self._normalize_name(move.id) == normalized_input:
+                self.selected_order = Player.create_order(move)
+                print(
+                    f"[bold bright_red]Battle Agent: Selected move {move.id}[/bold bright_red]"
+                )
+                return f"Selected move: {move.id}"
+
+        # If exact match not found, try partial match
+        for move in self.battle.available_moves:
+            if (
+                normalized_input in self._normalize_name(move.id)
+                or self._normalize_name(move.id) in normalized_input
+            ):
+                self.selected_order = Player.create_order(move)
+                print(
+                    f"[bold bright_red]Battle Agent: Selected move {move.id}[/bold bright_red]"
+                )
+                return f"Selected move: {move.id}"
+
+        # Fallback: use first available move
+        if self.battle.available_moves:
+            fallback_move = self.battle.available_moves[0]
+            self.selected_order = Player.create_order(fallback_move)
+            print(
+                f"[bold bright_red]Battle Agent: Move '{move_name}' not found, using fallback: {fallback_move.id}[/bold bright_red]"
+            )
+            return f"Move '{move_name}' not found, using fallback: {fallback_move.id}"
+
+        return f"No moves available"
+
+    def _swap_pokemon(self, pokemon_name: str) -> str:
+        """Switch to a different pokemon."""
         print_agent_function_call("swap_pokemon", pokemon_name)
-        pokemon_id = self.battle_data.trainer.get_pokemon_id(pokemon_name=pokemon_name)
-        payload = f"{self.battle_data.battle_id}|/choose switch {pokemon_id}"
-        print("p:", payload)
-        self.battle_data.move_queue.append(payload)
 
+        # Normalize pokemon name for comparison
+        normalized_input = self._normalize_name(pokemon_name)
 
-    def execute_agent(self, state: SharedState):
-        return self.executor.invoke(state)
+        # Find the pokemon in available switches
+        for pokemon in self.battle.available_switches:
+            if self._normalize_name(pokemon.species) == normalized_input:
+                self.selected_order = Player.create_order(pokemon)
+                print(
+                    f"[bold bright_red]Battle Agent: Switching to {pokemon.species}[/bold bright_red]"
+                )
+                return f"Switching to: {pokemon.species}"
 
+        # Try partial match
+        for pokemon in self.battle.available_switches:
+            if (
+                normalized_input in self._normalize_name(pokemon.species)
+                or self._normalize_name(pokemon.species) in normalized_input
+            ):
+                self.selected_order = Player.create_order(pokemon)
+                print(
+                    f"[bold bright_red]Battle Agent: Switching to {pokemon.species}[/bold bright_red]"
+                )
+                return f"Switching to: {pokemon.species}"
+
+        # Fallback: switch to first available
+        if self.battle.available_switches:
+            fallback_pokemon = self.battle.available_switches[0]
+            self.selected_order = Player.create_order(fallback_pokemon)
+            print(
+                f"[bold bright_red]Battle Agent: Pokemon '{pokemon_name}' not found, switching to: {fallback_pokemon.species}[/bold bright_red]"
+            )
+            return f"Pokemon '{pokemon_name}' not found, switching to: {fallback_pokemon.species}"
+
+        return f"No switches available"
+
+    def _normalize_name(self, name: str) -> str:
+        """Normalize name for comparison."""
+        return (
+            name.lower()
+            .replace(" ", "")
+            .replace("-", "")
+            .replace("_", "")
+            .replace("'", "")
+        )
+
+    def get_order(self) -> Optional[BattleOrder]:
+        """Get the battle order that was selected."""
+        return self.selected_order

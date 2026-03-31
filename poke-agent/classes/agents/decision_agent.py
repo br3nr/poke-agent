@@ -1,43 +1,35 @@
-import os
+"""
+DecisionAgent - The Team Captain
+
+Makes strategic decisions based on the analysis from the AnalysisAgent.
+Uses a thinking/reasoning model to deliberate and produce instructions
+for the BattleAgent.
+"""
+
 import time
-from dotenv import load_dotenv
-from typing_extensions import TypedDict
-from pydantic import BaseModel, Field
+from textwrap import dedent
 from rich import print
 from google.api_core.exceptions import ResourceExhausted
 import google.generativeai as genai
-from textwrap import dedent
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
-from langgraph.graph import StateGraph, END
+from langgraph.graph import StateGraph
 
 from utils.config import safety_filters
-from classes.battle_data import BattleData
-from classes.agent_toolkit import AgentToolkit
 from classes.sharedstate import SharedState
 
-class DecisionAgent:
-    def __init__(self, battle_data: BattleData):
 
-        self.toolkit = AgentToolkit(battle_data)
-        self.battle_data = battle_data
+class DecisionAgent:
+    def __init__(self):
         self.llm = genai.GenerativeModel(
-            model_name='gemini-2.0-flash-thinking-exp-01-21',
+            model_name="gemini-2.5-flash",
             safety_settings=safety_filters,
         )
 
-        self.graph = StateGraph(SharedState)  # Create a new graph
-
+        self.graph = StateGraph(SharedState)
         self.graph.add_node("get_decision", self.get_decision)
-
-        # Define entry point and edges
         self.graph.set_entry_point("get_decision")
-
-        # Compile the graph
         self.executor = self.graph.compile()
 
     def get_decision(self, state: SharedState):
-
         chat = self.llm.start_chat()
 
         msg = dedent(f""" 
@@ -47,7 +39,7 @@ class DecisionAgent:
         
             Analysis Agent: '{state["analysis"]}' 
 
-        We also have a history of the past few moves that you have made previosly:
+        We also have a history of the past few moves that you have made previously:
 
             History: 
                 '{state["history"][-5:]}'
@@ -55,19 +47,20 @@ class DecisionAgent:
         Given the above analysis, you must now make the call on what the best decision is.
         
         You have two options:
-            1) Attack with one of the current moves
-            2) Switch pokemon
+            1) Attack with one of the current moves (specify the exact move name)
+            2) Switch pokemon (specify the exact pokemon name to switch to)
 
-        You should rely on the information provided in the analysis. It is imperrative that you only use common knowledge where relevant.
+        You should rely on the information provided in the analysis. It is imperative that you only use common knowledge where relevant.
         You may draw conclusions from the data you are shown.
-        Take into account the previos moves you have made as well. These will be critical in your decision making.
+        Take into account the previous moves you have made as well. These will be critical in your decision making.
         It is important that you factor in future play and your previous moves.
         Make sure you think through it carefully. 
         
         Address your team in the response.
-        Once you have decided, concicely explain your logic. Give it in a bullet list. It must not be verbose. 
+        Once you have decided, concisely explain your logic. Give it in a bullet list. It must not be verbose. 
         As in, maximum 10 bullet points.
         Once you have explained, instruct the Team Battler on what they should do.
+        Be explicit: say either "USE MOVE: <move_name>" or "SWITCH TO: <pokemon_name>"
         """)
 
         response = None
@@ -78,14 +71,10 @@ class DecisionAgent:
                 print("[bold purple]Sleeping...[/bold purple]")
                 time.sleep(15)
 
-        print(
-            f"[bold magenta]Decision Agent\n{response}[/bold magenta]"
-        )
-        
-        state["decision"] = response
+        print(f"[bold magenta]Decision Agent\n{response}[/bold magenta]")
 
+        state["decision"] = response
         return state
 
     def execute_agent(self, state: SharedState):
         return self.executor.invoke(state)
-

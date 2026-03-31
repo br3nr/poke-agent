@@ -1,7 +1,7 @@
 [project]
 name = "poke-agent"
-version = "0.1.0"
-description = "Add your description here"
+version = "0.2.0"
+description = "AI-powered Pokemon battle bot using LangGraph agents"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
@@ -12,5 +12,5 @@ dependencies = [
     "langgraph>=0.2.64",
     "python-dotenv>=1.0.1",
     "rich>=13.9.4",
-    "websockets==13.1",
+    "poke-env>=0.8.0",
 ]
