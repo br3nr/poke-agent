@@ -56,7 +56,7 @@ class Pokemon:
 
     def get_pokemon_type(self, name: str) -> str:
         url = f"http://localhost:3000/pokemon?name={name}"
-        print(f"[bold purple]Sending request: {url}[/bold purple]")
+        # TODO: check if duplicate api call logic 
         resp_json = requests.get(url).json()
         types = resp_json["types"]
         return str(types)

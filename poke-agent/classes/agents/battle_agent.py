@@ -35,13 +35,8 @@ class BattleAgent:
 
 
         self.graph = StateGraph(SharedState)  # Create a new graph
-
         self.graph.add_node("select_move", self.select_move)
-
-        # Define entry point and edges
         self.graph.set_entry_point("select_move")
-
-        # Compile the graph
         self.executor = self.graph.compile()
 
     def select_move(self, state: SharedState):

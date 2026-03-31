@@ -34,7 +34,6 @@ class AgentToolkit():
         """Gets the details about one of the pokemon in your team"""
         team = self.battle_data.trainer.get_team()
         for mon in team:
-            # print(mon.name, pokemon_name)
             if mon.name == pokemon_name:
                 print_agent_function_call("get_pokemon_details", pokemon_name, mon)
                 return str(mon)
@@ -58,7 +57,6 @@ class AgentToolkit():
             if mon.condition != "0 fnt" or mon.name != self.battle_data.trainer.get_active_pokemon().name:
                 team_list.append({"name": mon.name, "type": mon.types})
        
-        print(str(team_list))
         print_agent_function_call("get_team_details", team_name, team_list)
         return str(team_list)
 

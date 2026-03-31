@@ -21,7 +21,7 @@ class AnalysisAgent:
         self.toolkit = AgentToolkit(battle_data)
         self.battle_data = battle_data
         self.llm = genai.GenerativeModel(
-            model_name="gemini-2.5-flash-preview-05-20",
+            model_name="gemini-2.5-flash-lite",
             tools=[
                 self.toolkit.get_pokemon_details,
                 self.toolkit.get_current_moves,
