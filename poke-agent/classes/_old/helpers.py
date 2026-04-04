@@ -4,9 +4,10 @@ from rich import print
 import re
 from typing import List, Dict
 from requests.exceptions import JSONDecodeError
-from classes.dex.dex_api import DexAPI
+from classes.dex_client import DexAPIClient
+from classes.models import AbilityData, PokemonData, MoveData
 
-dex = DexAPI(gen="sv")
+dex = DexAPIClient()
 
 def print_agent_function_call(fn_name: str, fn_input: str, fn_output: str = "N/A"):
     
@@ -14,26 +15,28 @@ def print_agent_function_call(fn_name: str, fn_input: str, fn_output: str = "N/A
         f"[bold blue]\nPoke Agent Triggered: {fn_name}\nInput: {fn_input}\nOutput:{fn_output}\n[/bold blue]"
     )
 
-
 def get_move_details(move: str):
     if "hidden-power" in move:
-        # TODO: Determine better way to handle edge cases
         move = "hidden-power"
     elif "return102" in move:
-        # because it does up to 102, always in showdown 102 
         move = "return"
     elif "hiddenpower" in move:
         move = "hiddenpower"
 
-    move_data = dex.get_move(move)
+    try:
+        move_data = dex.get_move(move)
+    except requests.RequestException as e:
+        print(f"Error fetching move: {e}")
+        return None
 
     return {
-        "name": move_data["name"],
-        "type": move_data["type"].lower(),
-        "class": move_data["category"],
-        "accuracy": move_data["accuracy"],
-        "power": move_data["power"],
-        "description": move_data["description"],
+        "name": move_data.moveName,
+        "type": move_data.type,
+        "power": move_data.basePower,
+        "accuracy": move_data.accuracy,
+        "pp": move_data.pp,
+        "category": move_data.category,
+        "description": move_data.shortDesc,
     }
 
 
@@ -51,17 +54,8 @@ def get_challenge_data(challstr, username, password):
     return data
 
 
-def get_types(pokemon_name, ident=None):
-    try:
-        pokemon_data = get_pokemon_info(pokemon_name)
-    except JSONDecodeError as e:
-        if ident:
-            print("[red]Retrying with ident[/red]")
-            pokemon_data = get_pokemon_info(ident)
-    if len(pokemon_data) == 0:
-        print(pokemon_name)
-        print(pokemon_data)
-    return pokemon_data["types"]
+def get_types(pokemon_name):
+    return dex.get_pokemon(pokemon_name).types 
 
 
 def fix_name_format(name: str):
@@ -71,13 +65,8 @@ def fix_name_format(name: str):
 
 
 def get_pokemon_info(name: str):
-    """fixed_name = fix_name_format(name).replace(" ", "")
-    url = f"https://pokeapi.co/api/v2/pokemon/{fixed_name.lower()}"
-    print(f"[bold purple]Sending request: {url}[/bold purple]")
-    resp = requests.get(url)"""
-    data = dex.get_pokemon(name=name)
+    data = dex.get_pokemon(name)
     return data
-
 
 def get_damage_relations(attack_types: List[str]):
 
