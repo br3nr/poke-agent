@@ -2,3 +2,5 @@
 *__pycache__
 *.env
 poke_agent.egg-info
+.venv
+todo.txt
