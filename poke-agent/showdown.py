@@ -12,9 +12,10 @@ from classes.player import GeminiPlayer
 
 load_dotenv()
 
+BATTLE_FORMAT = "gen9randombattle"
+
 
 def configure_gemini():
-    """Configure Google Gemini API."""
     api_key = os.getenv("GOOGLE_API_KEY")
     if not api_key:
         raise ValueError("GOOGLE_API_KEY not found in environment variables")
@@ -28,19 +29,17 @@ async def test_locally(n_battles: int = 3):
     )
 
     gemini_player = GeminiPlayer(
-        battle_format="gen7randombattle",
+        battle_format=BATTLE_FORMAT,
         max_concurrent_battles=1,
     )
 
     random_player = RandomPlayer(
-        battle_format="gen7randombattle",
+        battle_format=BATTLE_FORMAT,
         max_concurrent_battles=1,
     )
 
-    # Run battles
     await gemini_player.battle_against(random_player, n_battles=n_battles)
 
-    # Print results
     print(f"\n[bold cyan]{'=' * 60}[/bold cyan]")
     print(f"[bold cyan]Results[/bold cyan]")
     print(f"[bold cyan]{'=' * 60}[/bold cyan]")
@@ -52,11 +51,6 @@ async def test_locally(n_battles: int = 3):
 
 
 async def play_online():
-    """
-    Play on the official Pokemon Showdown server.
-
-    Requires SHOWDOWN_USERNAME and SHOWDOWN_PASSWORD in .env
-    """
     username = os.getenv("SHOWDOWN_USERNAME")
     password = os.getenv("SHOWDOWN_PASSWORD")
 
@@ -68,11 +62,10 @@ async def play_online():
     player = GeminiPlayer(
         account_configuration=AccountConfiguration(username, password),
         server_configuration=ShowdownServerConfiguration,
-        battle_format="gen7randombattle",
+        battle_format=BATTLE_FORMAT,
         max_concurrent_battles=1,
     )
 
-    # Accept incoming challenges
     print("[bold green]Waiting for challenges...[/bold green]")
     print("[dim]Challenge this bot on Pokemon Showdown to start a battle[/dim]")
 
@@ -80,9 +73,6 @@ async def play_online():
 
 
 async def challenge_player(opponent: str):
-    """
-    Challenge a specific player on Pokemon Showdown.
-    """
     username = os.getenv("SHOWDOWN_USERNAME")
     password = os.getenv("SHOWDOWN_PASSWORD")
 
@@ -94,7 +84,7 @@ async def challenge_player(opponent: str):
     player = GeminiPlayer(
         account_configuration=AccountConfiguration(username, password),
         server_configuration=ShowdownServerConfiguration,
-        battle_format="gen7randombattle",
+        battle_format=BATTLE_FORMAT,
         max_concurrent_battles=1,
     )
 
@@ -102,9 +92,6 @@ async def challenge_player(opponent: str):
 
 
 async def ladder(n_games: int = 5):
-    """
-    Play on the Pokemon Showdown ladder.
-    """
     username = os.getenv("SHOWDOWN_USERNAME")
     password = os.getenv("SHOWDOWN_PASSWORD")
 
@@ -116,9 +103,9 @@ async def ladder(n_games: int = 5):
     player = GeminiPlayer(
         account_configuration=AccountConfiguration(username, password),
         server_configuration=ShowdownServerConfiguration,
-        battle_format="gen7randombattle",
+        battle_format=BATTLE_FORMAT,
         max_concurrent_battles=1,
-        start_timer_on_battle_start=True,  # Start timer for ladder games
+        start_timer_on_battle_start=True,
     )
 
     await player.ladder(n_games)
@@ -160,10 +147,8 @@ Examples:
 
     args = parser.parse_args()
 
-    # Configure Gemini
     configure_gemini()
 
-    # Run appropriate mode
     if args.test:
         asyncio.run(test_locally(args.num_battles))
     elif args.online:
@@ -173,7 +158,6 @@ Examples:
     elif args.ladder:
         asyncio.run(ladder(args.num_battles))
     else:
-        # Default: test locally
         print("[dim]No mode specified, running local test...[/dim]")
         print("[dim]Use --help to see available options[/dim]\n")
         asyncio.run(test_locally(args.num_battles))

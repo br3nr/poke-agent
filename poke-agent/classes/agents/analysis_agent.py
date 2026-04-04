@@ -1,10 +1,3 @@
-"""
-AnalysisAgent - The Team Researcher
-
-Gathers comprehensive battle state information using available tools.
-Produces a structured analysis report for the DecisionAgent.
-"""
-
 import time
 from textwrap import dedent
 from rich import print
@@ -46,7 +39,6 @@ class AnalysisAgent:
     def get_analysis(self, state: SharedState):
         chat = self.llm.start_chat(enable_automatic_function_calling=True)
 
-        # Get current pokemon names from poke-env battle object
         active_pokemon = self.battle.active_pokemon
         opponent_pokemon = self.battle.opponent_active_pokemon
 
@@ -84,11 +76,10 @@ class AnalysisAgent:
         while response_text is None:
             try:
                 response = chat.send_message(msg)
-                # Handle case where model returns function calls but no text
                 try:
                     response_text = response.text
                 except ValueError:
-                    # No text in response, ask for summary
+                    # no text in response, ask for summary
                     response = chat.send_message(
                         "Now provide your complete analysis report as text."
                     )

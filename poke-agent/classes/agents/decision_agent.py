@@ -1,11 +1,3 @@
-"""
-DecisionAgent - The Team Captain
-
-Makes strategic decisions based on the analysis from the AnalysisAgent.
-Uses a thinking/reasoning model to deliberate and produce instructions
-for the BattleAgent.
-"""
-
 import time
 from textwrap import dedent
 from rich import print

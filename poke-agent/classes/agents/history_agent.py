@@ -1,10 +1,3 @@
-"""
-HistoryAgent - The Battle Historian
-
-Processes battle logs into structured summaries for decision context.
-Provides the DecisionAgent with historical context about past turns.
-"""
-
 import time
 from textwrap import dedent
 from typing import List
@@ -101,5 +94,4 @@ class HistoryAgent:
         return state
 
     def execute_agent(self, log: str) -> dict:
-        """Execute the agent with a battle log and return the result."""
         return self.executor.invoke({"log": log, "summary": ""})
