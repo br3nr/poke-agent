@@ -25,7 +25,7 @@ class AnalysisAgent:
         self.toolkit = toolkit
 
         self.llm = genai.GenerativeModel(
-            model_name="gemini-2.5-flash-lite",
+            model_name="gemini-2.5-flash",
             tools=[
                 self.toolkit.get_pokemon_details,
                 self.toolkit.get_current_moves,
@@ -93,9 +93,12 @@ class AnalysisAgent:
                         "Now provide your complete analysis report as text."
                     )
                     response_text = response.text
-            except ResourceExhausted:
-                print("[bold purple]Sleeping...[/bold purple]")
+            except ResourceExhausted as e:
+                print(f"[bold purple]Rate limited: {e}. Sleeping 15s...[/bold purple]")
                 time.sleep(15)
+            except Exception as e:
+                print(f"[bold red]Analysis error: {type(e).__name__}: {e}[/bold red]")
+                raise
 
         print(
             f"[bold bright_yellow]Analysis Agent\n{response_text}[/bold bright_yellow]"

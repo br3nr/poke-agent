@@ -25,7 +25,7 @@ class BattleLog(TypedDict):
 class HistoryAgent:
     def __init__(self):
         self.llm = genai.GenerativeModel(
-            model_name="gemini-2.0-flash-lite",
+            model_name="gemini-2.5-flash",
             generation_config={"temperature": 0},
             safety_settings=safety_filters,
         )

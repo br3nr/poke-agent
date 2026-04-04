@@ -1,21 +1,3 @@
-#!/usr/bin/env python3
-"""
-Poke-Agent - AI Pokemon Battle Bot
-
-Entry point for the Gemini-powered Pokemon Showdown battle bot.
-Uses poke-env for battle management and LangGraph agents for decision making.
-
-Usage:
-    # Test against built-in RandomPlayer (local)
-    python showdown.py --test
-
-    # Play on Pokemon Showdown servers
-    python showdown.py --online
-
-    # Challenge a specific player
-    python showdown.py --challenge <username>
-"""
-
 import asyncio
 import argparse
 import os
@@ -28,8 +10,6 @@ from poke_env.player import RandomPlayer
 
 from classes.player import GeminiPlayer
 
-
-# Load environment variables
 load_dotenv()
 
 
@@ -43,17 +23,10 @@ def configure_gemini():
 
 
 async def test_locally(n_battles: int = 3):
-    """
-    Test the bot against a RandomPlayer locally.
-
-    Requires a local Pokemon Showdown server running.
-    Start one with: node pokemon-showdown start --no-security
-    """
     print(
         f"\n[bold cyan]Testing GeminiPlayer vs RandomPlayer ({n_battles} battles)[/bold cyan]\n"
     )
 
-    # Create players - no auth needed for local server
     gemini_player = GeminiPlayer(
         battle_format="gen7randombattle",
         max_concurrent_battles=1,
