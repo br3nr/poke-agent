@@ -1,16 +1,11 @@
-from typing import List, Dict, Any, Optional
-from poke_env.battle import Battle, Pokemon, Move, PokemonType
+from typing import List, Dict, Any
+from poke_env.battle import Battle, Pokemon, PokemonType
 from poke_env.data import GenData
-from rich import print
+
+from utils.logging import print_agent_function_call
 
 
-def print_agent_function_call(fn_name: str, fn_input: str, fn_output: Any = "N/A"):
-    print(
-        f"[bold blue]\nPoke Agent Triggered: {fn_name}\nInput: {fn_input}\nOutput:{fn_output}\n[/bold blue]"
-    )
-
-
-class AgentToolkit:
+class BattleStateBuilder:
     def __init__(self, battle: Battle):
         self.battle = battle
         self.gen_data = GenData.from_gen(battle.gen)
@@ -22,11 +17,12 @@ class AgentToolkit:
                 pokemon_name
             ):
                 details = self._format_pokemon_details(pokemon)
+                print_agent_function_call("get_pokemon_details", pokemon_name, details)
                 return details
         return f"Could not find pokemon '{pokemon_name}' in team"
 
     def get_opponent_pokemon_details(self, pokemon_name: str) -> str:
-        """Gets the details about the opponent's pokemon including type advantages."""
+        """Gets the details about the opponent's active pokemon including type advantages."""
         opponent_pokemon = None
 
         if self.battle.opponent_active_pokemon:
@@ -56,9 +52,45 @@ class AgentToolkit:
 
         details += f"\n\n{self.check_type_advantages(pokemon_name)}"
 
+        print_agent_function_call("get_opponent_pokemon_details", pokemon_name, details)
         return details
 
-    def get_team_details(self, team_name: str = "team") -> List[dict]:
+    def get_opponent_revealed_team(self) -> List[Dict[str, Any]]:
+        """Returns all revealed opponent pokemon that are not currently active."""
+        revealed = []
+
+        for pokemon in self.battle.opponent_team.values():
+            if pokemon.active:
+                continue
+
+            types = [t.name for t in pokemon.types if t]
+            known_moves = []
+            for move_id, move in pokemon.moves.items():
+                known_moves.append(
+                    {
+                        "name": move_id,
+                        "type": move.type.name if move.type else "UNKNOWN",
+                        "category": move.category.name if move.category else "UNKNOWN",
+                        "power": move.base_power,
+                    }
+                )
+
+            entry = {
+                "name": pokemon.species,
+                "types": types,
+                "hp": f"{pokemon.current_hp_fraction * 100:.0f}%",
+                "fainted": pokemon.fainted,
+                "status": pokemon.status.name if pokemon.status else None,
+                "known_moves": known_moves,
+                "ability": pokemon.ability,
+                "item": pokemon.item if pokemon.item != "unknown_item" else None,
+            }
+            revealed.append(entry)
+
+        print_agent_function_call("get_opponent_revealed_team", "opponent", revealed)
+        return revealed
+
+    def get_team_details(self) -> List[Dict[str, Any]]:
         """Returns all of the pokemon in the team with their current status."""
         team_list = []
 
@@ -78,6 +110,7 @@ class AgentToolkit:
                 }
             )
 
+        print_agent_function_call("get_team_details", "team", team_list)
         return team_list
 
     def check_type_advantages(self, pokemon_name: str) -> str:
@@ -136,6 +169,7 @@ class AgentToolkit:
             f"Immunities: {', '.join(sorted(immunities)) if immunities else 'None'}"
         )
 
+        print_agent_function_call("check_type_advantages", pokemon_name, relations)
         return relations
 
     def get_current_moves(self) -> List[Dict[str, Any]]:
@@ -154,6 +188,7 @@ class AgentToolkit:
             }
             detailed_moves.append(move_info)
 
+        print_agent_function_call("get_current_moves", "active_pokemon", detailed_moves)
         return detailed_moves
 
     def get_available_switches(self) -> List[Dict[str, Any]]:
@@ -171,6 +206,7 @@ class AgentToolkit:
                 }
             )
 
+        print_agent_function_call("get_available_switches", "team", switches)
         return switches
 
     def _format_pokemon_details(self, pokemon: Pokemon) -> str:

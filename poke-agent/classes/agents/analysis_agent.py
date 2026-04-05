@@ -1,102 +1,104 @@
-import time
-from textwrap import dedent
 from rich import print
-from google.api_core.exceptions import ResourceExhausted
-import google.generativeai as genai
-from langgraph.graph import StateGraph
 
 from poke_env.battle import Battle
 
-from utils.config import safety_filters
-from classes.agent_toolkit import AgentToolkit
+from classes.battle_state import BattleStateBuilder
 from classes.sharedstate import SharedState
 
 
 class AnalysisAgent:
-    def __init__(self, battle: Battle, toolkit: AgentToolkit):
+    def __init__(self, battle: Battle, state_builder: BattleStateBuilder):
         self.battle = battle
-        self.toolkit = toolkit
-
-        self.llm = genai.GenerativeModel(
-            model_name="gemini-2.5-flash",
-            tools=[
-                self.toolkit.get_pokemon_details,
-                self.toolkit.get_current_moves,
-                self.toolkit.get_opponent_pokemon_details,
-                self.toolkit.get_team_details,
-                self.toolkit.check_type_advantages,
-                self.toolkit.get_available_switches,
-            ],
-            generation_config={"temperature": 0},
-            safety_settings=safety_filters,
-        )
-
-        self.graph = StateGraph(SharedState)
-        self.graph.add_node("get_analysis", self.get_analysis)
-        self.graph.set_entry_point("get_analysis")
-        self.executor = self.graph.compile()
+        self.state_builder = state_builder
 
     def get_analysis(self, state: SharedState):
-        chat = self.llm.start_chat(enable_automatic_function_calling=True)
+        active = self.battle.active_pokemon
+        opponent = self.battle.opponent_active_pokemon
 
-        active_pokemon = self.battle.active_pokemon
-        opponent_pokemon = self.battle.opponent_active_pokemon
+        active_name = active.species if active else "Unknown"
+        opponent_name = opponent.species if opponent else "Unknown"
 
-        active_name = active_pokemon.species if active_pokemon else "Unknown"
-        opponent_name = opponent_pokemon.species if opponent_pokemon else "Unknown"
+        sections = []
 
-        msg = dedent(f""" 
-            **Team Analysis Report**
+        # Your active pokemon
+        sections.append("=== YOUR ACTIVE POKEMON ===")
+        sections.append(self.state_builder.get_pokemon_details(active_name))
 
-            You are the researcher in a professional Pokemon battle team. Your job is to gather and report all available facts about the battle.  
+        # Your active pokemon's type defenses
+        sections.append("=== YOUR POKEMON'S TYPE DEFENSES ===")
+        sections.append(self.state_builder.check_type_advantages(active_name))
 
-            Your current pokemon is {active_name}
-            You are currently facing off against {opponent_name}.
+        # Available moves
+        sections.append("=== AVAILABLE MOVES ===")
+        moves = self.state_builder.get_current_moves()
+        if moves:
+            for m in moves:
+                sections.append(
+                    f"- {m['name']}: {m['type']} ({m['category']}) | "
+                    f"Power: {m['power']} | Accuracy: {m['accuracy']} | "
+                    f"Priority: {m['priority']} | PP: {m['pp']}"
+                )
+        else:
+            sections.append("No moves available")
 
-            ### **Your Task:**
-            1. Use the available tools to collect detailed information.
-            2. List **all** retrieved data in a structured format.
-            3. Do **not** summarize, interpret, or omit any details.
+        # Opponent's active pokemon (includes type advantages via get_opponent_pokemon_details)
+        sections.append("=== OPPONENT'S ACTIVE POKEMON ===")
+        sections.append(self.state_builder.get_opponent_pokemon_details(opponent_name))
 
-            ---
+        # Opponent's revealed team (non-active)
+        sections.append("=== OPPONENT'S REVEALED TEAM ===")
+        revealed = self.state_builder.get_opponent_revealed_team()
+        if revealed:
+            for p in revealed:
+                status = " | FAINTED" if p["fainted"] else ""
+                if p["status"]:
+                    status += f" | {p['status']}"
 
-            ### **What You Must Gather:**
-            - **Your Pokemon Details**: Call `get_pokemon_details` on your active Pokemon ({active_name}).
-            - **Your Pokemon's Available Moves**: Call `get_current_moves`.
-            - **Opponent's Pokemon Details**: Call `get_opponent_pokemon_details` on the opposing Pokemon ({opponent_name}).
-            - **Type Matchups & Advantages**: Call `check_type_advantages` for the opponent's Pokemon.
-            - **Your Team Details**: Call `get_team_details` to list all available team members.
-            - **Available Switches**: Call `get_available_switches` to see which Pokemon you can switch to.
+                line = f"- {p['name']}: {', '.join(p['types'])} | HP: {p['hp']}{status}"
 
-            **You must call each function and include all retrieved information in your response.**  
+                if p["known_moves"]:
+                    move_strs = [
+                        f"{m['name']} ({m['type']}, {m['category']}, Power: {m['power']})"
+                        for m in p["known_moves"]
+                    ]
+                    line += f"\n  Known Moves: {', '.join(move_strs)}"
 
-            Begin your report now.""")
+                if p["ability"]:
+                    line += f"\n  Ability: {p['ability']}"
+                if p["item"]:
+                    line += f"\n  Item: {p['item']}"
 
-        response_text = None
-        while response_text is None:
-            try:
-                response = chat.send_message(msg)
-                try:
-                    response_text = response.text
-                except ValueError:
-                    # no text in response, ask for summary
-                    response = chat.send_message(
-                        "Now provide your complete analysis report as text."
-                    )
-                    response_text = response.text
-            except ResourceExhausted as e:
-                print(f"[bold purple]Rate limited: {e}. Sleeping 15s...[/bold purple]")
-                time.sleep(15)
-            except Exception as e:
-                print(f"[bold red]Analysis error: {type(e).__name__}: {e}[/bold red]")
-                raise
+                sections.append(line)
+        else:
+            sections.append("No other opponent pokemon revealed yet")
 
-        print(
-            f"[bold bright_yellow]Analysis Agent\n{response_text}[/bold bright_yellow]"
-        )
+        # Your full team
+        sections.append("=== YOUR TEAM ===")
+        team = self.state_builder.get_team_details()
 
-        state["analysis"] = response_text
+        for mon in team:
+            if not mon["active"]:
+                sections.append(
+                    f"{mon['name']}\nTypes: {', '.join(mon['types'])}\nStatus: {mon['status']}"
+                )
+
+        # sections.append("=== AVAILABLE SWITCHES ===")
+        # switches = self.state_builder.get_available_switches()
+        # if switches:
+        #     for s in switches:
+        #         status = f" ({s['status']})" if s["status"] else ""
+        #         sections.append(
+        #             f"- {s['name']}: {', '.join(s['types'])} | HP: {s['hp']}{status}"
+        #         )
+        # else:
+        #     sections.append("No switches available")
+
+        analysis = "\n\n".join(sections)
+
+        print(f"[bold bright_yellow]Analysis Agent\n{analysis}[/bold bright_yellow]")
+
+        state["analysis"] = analysis
         return state
 
     def execute_agent(self, state: SharedState):
-        return self.executor.invoke(state)
+        return self.get_analysis(state)

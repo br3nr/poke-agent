@@ -5,7 +5,7 @@ from poke_env import Player
 from poke_env.battle import Battle
 from poke_env.player.battle_order import BattleOrder
 
-from classes.agent_toolkit import AgentToolkit
+from classes.battle_state import BattleStateBuilder
 from classes.agents.analysis_agent import AnalysisAgent
 from classes.agents.decision_agent import DecisionAgent
 from classes.agents.battle_agent import BattleAgent
@@ -36,10 +36,10 @@ class GeminiPlayer(Player):
         print(f"[bold cyan]{'=' * 60}[/bold cyan]\n")
 
         try:
-            toolkit = AgentToolkit(battle)
+            state_builder = BattleStateBuilder(battle)
 
             print("[bold green]Phase 1: Analysis[/bold green]")
-            analysis_agent = AnalysisAgent(battle, toolkit)
+            analysis_agent = AnalysisAgent(battle, state_builder)
             self.state = analysis_agent.execute_agent(self.state)
 
             print("\n[bold green]Phase 2: Decision[/bold green]")

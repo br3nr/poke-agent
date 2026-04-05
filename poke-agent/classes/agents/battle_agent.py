@@ -7,7 +7,7 @@ from poke_env.player import Player
 from poke_env.player.battle_order import BattleOrder
 
 from classes.sharedstate import SharedState
-from classes.agent_toolkit import print_agent_function_call
+from utils.logging import print_agent_function_call
 
 
 class BattleAgent:
