@@ -7,12 +7,28 @@ from rich import print
 
 from poke_env import AccountConfiguration, ShowdownServerConfiguration
 from poke_env.player import RandomPlayer
+from poke_env.concurrency import POKE_LOOP
 
 from classes.player import GeminiPlayer
 
 load_dotenv()
 
 BATTLE_FORMAT = "gen9randombattle"
+
+
+async def forfeit_on_cancel(player: GeminiPlayer, coro):
+    try:
+        return await coro
+    except asyncio.CancelledError:
+        print("\n[bold yellow]Interrupted — forfeiting active battles...[/bold yellow]")
+        future = asyncio.run_coroutine_threadsafe(
+            player.forfeit_active_battles(), POKE_LOOP
+        )
+        try:
+            future.result(timeout=5)
+        except Exception:
+            pass
+        print("[bold green]Resigned and exiting.[/bold green]")
 
 
 def configure_gemini():
@@ -38,7 +54,10 @@ async def test_locally(n_battles: int = 3):
         max_concurrent_battles=1,
     )
 
-    await gemini_player.battle_against(random_player, n_battles=n_battles)
+    await forfeit_on_cancel(
+        gemini_player,
+        gemini_player.battle_against(random_player, n_battles=n_battles),
+    )
 
     print(f"\n[bold cyan]{'=' * 60}[/bold cyan]")
     print(f"[bold cyan]Results[/bold cyan]")
@@ -69,7 +88,7 @@ async def play_online():
     print("[bold green]Waiting for challenges...[/bold green]")
     print("[dim]Challenge this bot on Pokemon Showdown to start a battle[/dim]")
 
-    await player.accept_challenges(None, 10)
+    await forfeit_on_cancel(player, player.accept_challenges(None, 10))
 
 
 async def challenge_player(opponent: str):
@@ -88,7 +107,7 @@ async def challenge_player(opponent: str):
         max_concurrent_battles=1,
     )
 
-    await player.send_challenges(opponent, n_challenges=1)
+    await forfeit_on_cancel(player, player.send_challenges(opponent, n_challenges=1))
 
 
 async def ladder(n_games: int = 5):
@@ -108,7 +127,7 @@ async def ladder(n_games: int = 5):
         start_timer_on_battle_start=True,
     )
 
-    await player.ladder(n_games)
+    await forfeit_on_cancel(player, player.ladder(n_games))
 
     print(f"\n[bold cyan]Ladder Results[/bold cyan]")
     print(f"Won: {player.n_won_battles} / {player.n_finished_battles}")
@@ -148,6 +167,8 @@ Examples:
     args = parser.parse_args()
 
     configure_gemini()
+
+    print("[dim]press Ctrl+C during a battle to resign and exit[/dim]\n")
 
     if args.test:
         asyncio.run(test_locally(args.num_battles))

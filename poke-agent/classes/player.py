@@ -82,6 +82,20 @@ class GeminiPlayer(Player):
     def battle_callback(self, battle: Battle) -> None:
         pass
 
+    async def forfeit_active_battles(self) -> None:
+        """Forfeit all unfinished battles."""
+        for battle in self._battles.values():
+            if not battle.finished:
+                print(
+                    f"[bold yellow]Forfeiting battle: {battle.battle_tag}[/bold yellow]"
+                )
+                try:
+                    await self.ps_client.send_message("/forfeit", battle.battle_tag)
+                except Exception as e:
+                    print(
+                        f"[bold red]Failed to forfeit {battle.battle_tag}: {e}[/bold red]"
+                    )
+
     def reset_state(self) -> None:
         self.state = {
             "analysis": "",
