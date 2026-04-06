@@ -2,14 +2,24 @@ import asyncio
 import argparse
 import os
 from dotenv import load_dotenv
-import google.generativeai as genai
-from rich import print
 
 from poke_env import AccountConfiguration, ShowdownServerConfiguration
 from poke_env.player import RandomPlayer
 from poke_env.concurrency import POKE_LOOP
 
 from classes.player import GeminiPlayer
+from utils.logging import (
+    log_startup,
+    log_info,
+    log_results,
+    log_warning,
+    log_token_summary,
+    set_log_level,
+    set_log_file,
+    close_log_file,
+    MINIMAL,
+    VERBOSE,
+)
 
 load_dotenv()
 
@@ -20,7 +30,7 @@ async def forfeit_on_cancel(player: GeminiPlayer, coro):
     try:
         return await coro
     except asyncio.CancelledError:
-        print("\n[bold yellow]Interrupted — forfeiting active battles...[/bold yellow]")
+        log_warning("Interrupted — forfeiting active battles...")
         future = asyncio.run_coroutine_threadsafe(
             player.forfeit_active_battles(), POKE_LOOP
         )
@@ -28,21 +38,18 @@ async def forfeit_on_cancel(player: GeminiPlayer, coro):
             future.result(timeout=5)
         except Exception:
             pass
-        print("[bold green]Resigned and exiting.[/bold green]")
+        log_info("Resigned and exiting.")
 
 
-def configure_gemini():
+def check_api_key():
     api_key = os.getenv("GOOGLE_API_KEY")
     if not api_key:
         raise ValueError("GOOGLE_API_KEY not found in environment variables")
-    genai.configure(api_key=api_key)
-    print("[bold green]Gemini API configured successfully[/bold green]")
+    log_info("Gemini API key found")
 
 
 async def test_locally(n_battles: int = 3):
-    print(
-        f"\n[bold cyan]Testing GeminiPlayer vs RandomPlayer ({n_battles} battles)[/bold cyan]\n"
-    )
+    log_startup(f"Testing GeminiPlayer vs RandomPlayer ({n_battles} battles)")
 
     gemini_player = GeminiPlayer(
         battle_format=BATTLE_FORMAT,
@@ -59,14 +66,11 @@ async def test_locally(n_battles: int = 3):
         gemini_player.battle_against(random_player, n_battles=n_battles),
     )
 
-    print(f"\n[bold cyan]{'=' * 60}[/bold cyan]")
-    print(f"[bold cyan]Results[/bold cyan]")
-    print(f"[bold cyan]{'=' * 60}[/bold cyan]")
-    print(
-        f"GeminiPlayer: {gemini_player.n_won_battles} wins / {gemini_player.n_finished_battles} battles"
+    log_results(
+        gemini_player.n_won_battles,
+        gemini_player.n_finished_battles,
+        gemini_player.win_rate * 100 if gemini_player.n_finished_battles > 0 else 0,
     )
-    print(f"Win rate: {gemini_player.win_rate * 100:.1f}%")
-    print(f"[bold cyan]{'=' * 60}[/bold cyan]\n")
 
 
 async def play_online():
@@ -76,7 +80,7 @@ async def play_online():
     if not username or not password:
         raise ValueError("SHOWDOWN_USERNAME and SHOWDOWN_PASSWORD required in .env")
 
-    print(f"\n[bold cyan]Connecting to Pokemon Showdown as {username}[/bold cyan]\n")
+    log_startup(f"Connecting to Pokemon Showdown as {username}")
 
     player = GeminiPlayer(
         account_configuration=AccountConfiguration(username, password),
@@ -85,9 +89,7 @@ async def play_online():
         max_concurrent_battles=1,
     )
 
-    print("[bold green]Waiting for challenges...[/bold green]")
-    print("[dim]Challenge this bot on Pokemon Showdown to start a battle[/dim]")
-
+    log_info("Waiting for challenges...")
     await forfeit_on_cancel(player, player.accept_challenges(None, 10))
 
 
@@ -98,7 +100,7 @@ async def challenge_player(opponent: str):
     if not username or not password:
         raise ValueError("SHOWDOWN_USERNAME and SHOWDOWN_PASSWORD required in .env")
 
-    print(f"\n[bold cyan]Challenging {opponent} as {username}[/bold cyan]\n")
+    log_startup(f"Challenging {opponent} as {username}")
 
     player = GeminiPlayer(
         account_configuration=AccountConfiguration(username, password),
@@ -117,7 +119,7 @@ async def ladder(n_games: int = 5):
     if not username or not password:
         raise ValueError("SHOWDOWN_USERNAME and SHOWDOWN_PASSWORD required in .env")
 
-    print(f"\n[bold cyan]Playing {n_games} ladder games as {username}[/bold cyan]\n")
+    log_startup(f"Playing {n_games} ladder games as {username}")
 
     player = GeminiPlayer(
         account_configuration=AccountConfiguration(username, password),
@@ -129,9 +131,11 @@ async def ladder(n_games: int = 5):
 
     await forfeit_on_cancel(player, player.ladder(n_games))
 
-    print(f"\n[bold cyan]Ladder Results[/bold cyan]")
-    print(f"Won: {player.n_won_battles} / {player.n_finished_battles}")
-    print(f"Win rate: {player.win_rate * 100:.1f}%")
+    log_results(
+        player.n_won_battles,
+        player.n_finished_battles,
+        player.win_rate * 100 if player.n_finished_battles > 0 else 0,
+    )
 
 
 def main():
@@ -145,6 +149,8 @@ Examples:
     python showdown.py --online            # Accept challenges online
     python showdown.py --challenge br3nr   # Challenge a specific player
     python showdown.py --ladder            # Play on the ladder
+    python showdown.py --test -v           # Verbose logging
+    python showdown.py --test --log-file battle.log  # Log to file
         """,
     )
 
@@ -163,12 +169,27 @@ Examples:
         default=3,
         help="Number of battles (for test/ladder)",
     )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Verbose logging (show analysis, decision reasoning, agent calls)",
+    )
+    parser.add_argument(
+        "--log-file",
+        type=str,
+        help="Write verbose logs to a file (always captures full detail)",
+    )
 
     args = parser.parse_args()
 
-    configure_gemini()
+    set_log_level(VERBOSE if args.verbose else MINIMAL)
+    if args.log_file:
+        set_log_file(args.log_file)
 
-    print("[dim]press Ctrl+C during a battle to resign and exit[/dim]\n")
+    check_api_key()
+
+    log_info("Press Ctrl+C during a battle to resign and exit")
 
     if args.test:
         asyncio.run(test_locally(args.num_battles))
@@ -179,9 +200,11 @@ Examples:
     elif args.ladder:
         asyncio.run(ladder(args.num_battles))
     else:
-        print("[dim]No mode specified, running local test...[/dim]")
-        print("[dim]Use --help to see available options[/dim]\n")
+        log_info("No mode specified, running local test...")
         asyncio.run(test_locally(args.num_battles))
+
+    log_token_summary()
+    close_log_file()
 
 
 if __name__ == "__main__":

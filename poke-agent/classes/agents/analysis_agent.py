@@ -1,5 +1,3 @@
-from rich import print
-
 from poke_env.battle import Battle
 
 from classes.battle_state import BattleStateBuilder
@@ -100,20 +98,18 @@ class AnalysisAgent:
         ):
             sections.append("Opponent has already Terastallized.")
 
-        # sections.append("=== AVAILABLE SWITCHES ===")
-        # switches = self.state_builder.get_available_switches()
-        # if switches:
-        #     for s in switches:
-        #         status = f" ({s['status']})" if s["status"] else ""
-        #         sections.append(
-        #             f"- {s['name']}: {', '.join(s['types'])} | HP: {s['hp']}{status}"
-        #         )
-        # else:
-        #     sections.append("No switches available")
+        sections.append("=== AVAILABLE SWITCHES ===")
+        switches = self.state_builder.get_available_switches()
+        if switches:
+            for s in switches:
+                status = f" ({s['status']})" if s["status"] else ""
+                sections.append(
+                    f"- {s['name']}: {', '.join(s['types'])} | HP: {s['hp']}{status}"
+                )
+        else:
+            sections.append("No switches available")
 
         analysis = "\n\n".join(sections)
-
-        # print(f"[bold bright_yellow]Analysis Agent\n{analysis}[/bold bright_yellow]")
 
         state["analysis"] = analysis
         return state
