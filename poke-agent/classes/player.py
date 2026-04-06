@@ -34,6 +34,9 @@ class GeminiPlayer(Player):
         print(f"[bold cyan]{'=' * 60}[/bold cyan]\n")
 
         try:
+            self.state["analysis"] = ""
+            self.state["decision"] = ""
+
             state_builder = BattleStateBuilder(battle)
 
             print("[bold green]Phase 1: Analysis[/bold green]")
@@ -48,8 +51,6 @@ class GeminiPlayer(Player):
             battle_agent = BattleAgent(battle)
             order = battle_agent.execute_agent(self.state)
 
-            print("[red] The state:")
-            print(self.state)
             if order:
                 print(f"\n[bold green]Executing order: {order.message}[/bold green]\n")
                 return order

@@ -80,7 +80,7 @@ class AnalysisAgent:
                 )
 
         sections.append("=== RECENT TURN HISTORY ===")
-        sections.append(self.state_builder.get_turn_history(n=5))
+        sections.append(self.state_builder.get_turn_history(n=2))
 
         sections.append("=== BATTLEFIELD CONDITIONS ===")
         sections.append(self.state_builder.get_field_conditions())
