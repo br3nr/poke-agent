@@ -1,15 +1,11 @@
 [project]
 name = "poke-agent"
-version = "0.2.0"
-description = "AI-powered Pokemon battle bot using LangGraph agents"
+version = "0.3.0"
+description = "AI-powered Pokemon battle bot"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "google-cloud-aiplatform>=1.77.0",
-    "google-generativeai>=0.8.3",
-    "langchain-core>=0.3.30",
-    "langchain-google-genai>=2.0.9",
-    "langgraph>=0.2.64",
+    "google-genai>=1.70.0",
     "python-dotenv>=1.0.1",
     "rich>=13.9.4",
     "poke-env>=0.8.0",
