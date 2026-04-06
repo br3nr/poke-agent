@@ -1,5 +1,13 @@
 from typing import List, Dict, Any
-from poke_env.battle import Battle, Pokemon, PokemonType
+from poke_env.battle import (
+    Battle,
+    Pokemon,
+    PokemonType,
+    Weather,
+    Field,
+    SideCondition,
+    Effect,
+)
 from poke_env.data import GenData
 
 from utils.logging import print_agent_function_call
@@ -49,6 +57,42 @@ class BattleStateBuilder:
 
         if opponent_pokemon.status:
             details += f"\nStatus: {opponent_pokemon.status.name}"
+
+        if opponent_pokemon.ability:
+            details += f"\nAbility: {opponent_pokemon.ability}"
+
+        if opponent_pokemon.item and opponent_pokemon.item != "unknown_item":
+            details += f"\nItem: {opponent_pokemon.item}"
+
+        if opponent_pokemon.moves:
+            move_strs = []
+            for move_id, move in opponent_pokemon.moves.items():
+                move_type = move.type.name if move.type else "UNKNOWN"
+                category = move.category.name if move.category else "UNKNOWN"
+                move_strs.append(
+                    f"{move_id} ({move_type}, {category}, Power: {move.base_power})"
+                )
+            details += f"\nKnown Moves: {', '.join(move_strs)}"
+
+        if any(v != 0 for v in opponent_pokemon.boosts.values()):
+            boosts_str = ", ".join(
+                f"{k}: {v:+d}" for k, v in opponent_pokemon.boosts.items() if v != 0
+            )
+            details += f"\nStat Changes: {boosts_str}"
+
+        if opponent_pokemon.effects:
+            effect_names = [
+                e.name for e in opponent_pokemon.effects if e != Effect.UNKNOWN
+            ]
+            if effect_names:
+                details += f"\nActive Effects: {', '.join(effect_names)}"
+
+        if opponent_pokemon.is_terastallized:
+            tera_type = opponent_pokemon.tera_type
+            details += f"\nTerastallized: {tera_type.name if tera_type else 'YES'}"
+
+        if opponent_pokemon.last_move:
+            details += f"\nLast Move Used: {opponent_pokemon.last_move.id}"
 
         details += f"\n\n{self.check_type_advantages(pokemon_name)}"
 
@@ -172,6 +216,53 @@ class BattleStateBuilder:
         print_agent_function_call("check_type_advantages", pokemon_name, relations)
         return relations
 
+    def get_field_conditions(self) -> str:
+        """Returns current battlefield conditions: weather, terrain, trick room, side conditions."""
+        sections = []
+
+        # weather
+        if self.battle.weather:
+            for weather, turn in self.battle.weather.items():
+                if weather != Weather.UNKNOWN:
+                    sections.append(f"Weather: {weather.name}")
+
+        # field effects (terrain, trick room, gravity, etc.)
+        if self.battle.fields:
+            for field, turn in self.battle.fields.items():
+                if field != Field.UNKNOWN:
+                    sections.append(f"Field: {field.name}")
+
+        # conditions
+        our_conditions = []
+        if self.battle.side_conditions:
+            for condition, value in self.battle.side_conditions.items():
+                if condition != SideCondition.UNKNOWN:
+                    label = condition.name
+                    if condition in (SideCondition.SPIKES, SideCondition.TOXIC_SPIKES):
+                        label += f" (x{value})"
+                    our_conditions.append(label)
+        if our_conditions:
+            sections.append(f"Your side: {', '.join(our_conditions)}")
+
+        # opponent conditions
+        opp_conditions = []
+        if self.battle.opponent_side_conditions:
+            for condition, value in self.battle.opponent_side_conditions.items():
+                if condition != SideCondition.UNKNOWN:
+                    label = condition.name
+                    if condition in (SideCondition.SPIKES, SideCondition.TOXIC_SPIKES):
+                        label += f" (x{value})"
+                    opp_conditions.append(label)
+        if opp_conditions:
+            sections.append(f"Opponent's side: {', '.join(opp_conditions)}")
+
+        if not sections:
+            return "No active field conditions"
+
+        result = "\n".join(sections)
+        print_agent_function_call("get_field_conditions", "battle", result)
+        return result
+
     def get_current_moves(self) -> List[Dict[str, Any]]:
         """Gets the available moves for your active Pokemon."""
         detailed_moves = []
@@ -237,6 +328,17 @@ class BattleStateBuilder:
                 f"{k}: {v:+d}" for k, v in pokemon.boosts.items() if v != 0
             )
             details.append(f"Boosts: {boosts_str}")
+
+        if pokemon.effects:
+            effect_names = [e.name for e in pokemon.effects if e != Effect.UNKNOWN]
+            if effect_names:
+                details.append(f"Active Effects: {', '.join(effect_names)}")
+
+        if pokemon.is_terastallized:
+            tera_type = pokemon.tera_type
+            details.append(f"Terastallized: {tera_type.name if tera_type else 'YES'}")
+        elif pokemon.tera_type:
+            details.append(f"Tera Type: {pokemon.tera_type.name}")
 
         return "\n".join(details)
 

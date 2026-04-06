@@ -76,6 +76,24 @@ class AnalysisAgent:
                     f"{mon['name']}\nTypes: {', '.join(mon['types'])}\nStatus: {mon['status']}"
                 )
 
+        sections.append("=== BATTLEFIELD CONDITIONS ===")
+        sections.append(self.state_builder.get_field_conditions())
+
+        # tera availability
+        if self.battle.can_tera:
+            active_tera = active.tera_type if active else None
+            if active_tera:
+                sections.append(
+                    f"You can Terastallize to {active_tera.name} this turn."
+                )
+            else:
+                sections.append("Terastallization is available this turn.")
+        elif (
+            hasattr(self.battle, "opponent_used_tera")
+            and self.battle.opponent_used_tera
+        ):
+            sections.append("Opponent has already Terastallized.")
+
         # sections.append("=== AVAILABLE SWITCHES ===")
         # switches = self.state_builder.get_available_switches()
         # if switches:
@@ -89,7 +107,7 @@ class AnalysisAgent:
 
         analysis = "\n\n".join(sections)
 
-        #print(f"[bold bright_yellow]Analysis Agent\n{analysis}[/bold bright_yellow]")
+        # print(f"[bold bright_yellow]Analysis Agent\n{analysis}[/bold bright_yellow]")
 
         state["analysis"] = analysis
         return state
