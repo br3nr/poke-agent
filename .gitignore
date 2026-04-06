@@ -2,3 +2,4 @@
 *__pycache__
 *.env
 poke_agent.egg-info
+logs/

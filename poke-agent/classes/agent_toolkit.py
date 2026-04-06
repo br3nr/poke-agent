@@ -22,7 +22,6 @@ class AgentToolkit:
                 pokemon_name
             ):
                 details = self._format_pokemon_details(pokemon)
-                print_agent_function_call("get_pokemon_details", pokemon_name, details)
                 return details
         return f"Could not find pokemon '{pokemon_name}' in team"
 
@@ -57,10 +56,9 @@ class AgentToolkit:
 
         details += f"\n\n{self.check_type_advantages(pokemon_name)}"
 
-        print_agent_function_call("get_opponent_pokemon_details", pokemon_name, details)
         return details
 
-    def get_team_details(self, team_name: str = "team") -> str:
+    def get_team_details(self, team_name: str = "team") -> List[dict]:
         """Returns all of the pokemon in the team with their current status."""
         team_list = []
 
@@ -80,8 +78,7 @@ class AgentToolkit:
                 }
             )
 
-        print_agent_function_call("get_team_details", team_name, team_list)
-        return str(team_list)
+        return team_list
 
     def check_type_advantages(self, pokemon_name: str) -> str:
         """Takes the name of a pokemon. Returns what types the pokemon is weak/resistant to."""
@@ -139,7 +136,6 @@ class AgentToolkit:
             f"Immunities: {', '.join(sorted(immunities)) if immunities else 'None'}"
         )
 
-        print_agent_function_call("check_type_advantages", pokemon_name, relations)
         return relations
 
     def get_current_moves(self) -> List[Dict[str, Any]]:
@@ -158,7 +154,6 @@ class AgentToolkit:
             }
             detailed_moves.append(move_info)
 
-        print_agent_function_call("get_current_moves", "active_pokemon", detailed_moves)
         return detailed_moves
 
     def get_available_switches(self) -> List[Dict[str, Any]]:
@@ -176,7 +171,6 @@ class AgentToolkit:
                 }
             )
 
-        print_agent_function_call("get_available_switches", "team", switches)
         return switches
 
     def _format_pokemon_details(self, pokemon: Pokemon) -> str:
