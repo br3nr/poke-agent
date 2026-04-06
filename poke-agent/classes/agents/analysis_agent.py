@@ -30,11 +30,14 @@ class AnalysisAgent:
         moves = self.state_builder.get_current_moves()
         if moves:
             for m in moves:
-                sections.append(
+                line = (
                     f"- {m['name']}: {m['type']} ({m['category']}) | "
                     f"Power: {m['power']} | Accuracy: {m['accuracy']} | "
                     f"Priority: {m['priority']} | PP: {m['pp']}"
                 )
+                if m.get("effectiveness"):
+                    line += f" | {m['effectiveness']}"
+                sections.append(line)
         else:
             sections.append("No moves available")
 
@@ -75,6 +78,9 @@ class AnalysisAgent:
                 sections.append(
                     f"{mon['name']}\nTypes: {', '.join(mon['types'])}\nStatus: {mon['status']}"
                 )
+
+        sections.append("=== RECENT TURN HISTORY ===")
+        sections.append(self.state_builder.get_turn_history(n=5))
 
         sections.append("=== BATTLEFIELD CONDITIONS ===")
         sections.append(self.state_builder.get_field_conditions())

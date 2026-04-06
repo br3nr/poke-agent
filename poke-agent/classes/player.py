@@ -9,7 +9,6 @@ from classes.battle_state import BattleStateBuilder
 from classes.agents.analysis_agent import AnalysisAgent
 from classes.agents.decision_agent import DecisionAgent
 from classes.agents.battle_agent import BattleAgent
-from classes.agents.history_agent import HistoryAgent
 from classes.sharedstate import SharedState
 
 
@@ -24,7 +23,6 @@ class GeminiPlayer(Player):
         self.state: SharedState = {
             "analysis": "",
             "decision": "",
-            "history": [],
         }
         self._last_battle_tag: Optional[str] = None
 
@@ -49,13 +47,12 @@ class GeminiPlayer(Player):
             print("\n[bold green]Phase 3: Battle Execution[/bold green]")
             battle_agent = BattleAgent(battle)
             order = battle_agent.execute_agent(self.state)
-        
+
             print("[red] The state:")
             print(self.state)
             if order:
                 print(f"\n[bold green]Executing order: {order.message}[/bold green]\n")
                 return order
-            
 
             print(
                 "[bold yellow]Warning: No order from BattleAgent, using random move[/bold yellow]"
@@ -100,6 +97,5 @@ class GeminiPlayer(Player):
         self.state = {
             "analysis": "",
             "decision": "",
-            "history": [],
         }
         self._last_battle_tag = None

@@ -264,8 +264,9 @@ class BattleStateBuilder:
         return result
 
     def get_current_moves(self) -> List[Dict[str, Any]]:
-        """Gets the available moves for your active Pokemon."""
+        """Gets the available moves for your active Pokemon, including effectiveness vs the opponent."""
         detailed_moves = []
+        opponent = self.battle.opponent_active_pokemon
 
         for move in self.battle.available_moves:
             move_info = {
@@ -277,10 +278,30 @@ class BattleStateBuilder:
                 "priority": move.priority,
                 "pp": move.current_pp,
             }
+
+            if opponent and move.base_power > 0:
+                multiplier = opponent.damage_multiplier(move)
+                move_info["effectiveness"] = self._effectiveness_label(multiplier)
+
             detailed_moves.append(move_info)
 
         print_agent_function_call("get_current_moves", "active_pokemon", detailed_moves)
         return detailed_moves
+
+    @staticmethod
+    def _effectiveness_label(multiplier: float) -> str:
+        if multiplier == 0:
+            return "0x (immune)"
+        elif multiplier <= 0.25:
+            return f"{multiplier}x (doubly resisted)"
+        elif multiplier <= 0.5:
+            return f"{multiplier}x (resisted)"
+        elif multiplier >= 4:
+            return f"{multiplier}x (doubly super effective)"
+        elif multiplier >= 2:
+            return f"{multiplier}x (super effective)"
+        else:
+            return f"{multiplier}x (neutral)"
 
     def get_available_switches(self) -> List[Dict[str, Any]]:
         """Gets the available pokemon to switch to."""
