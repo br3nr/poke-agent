@@ -49,10 +49,13 @@ class GeminiPlayer(Player):
             print("\n[bold green]Phase 3: Battle Execution[/bold green]")
             battle_agent = BattleAgent(battle)
             order = battle_agent.execute_agent(self.state)
-
+        
+            print("[red] The state:")
+            print(self.state)
             if order:
                 print(f"\n[bold green]Executing order: {order.message}[/bold green]\n")
                 return order
+            
 
             print(
                 "[bold yellow]Warning: No order from BattleAgent, using random move[/bold yellow]"

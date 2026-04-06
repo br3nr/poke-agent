@@ -20,15 +20,12 @@ class AnalysisAgent:
 
         sections = []
 
-        # Your active pokemon
         sections.append("=== YOUR ACTIVE POKEMON ===")
         sections.append(self.state_builder.get_pokemon_details(active_name))
 
-        # Your active pokemon's type defenses
         sections.append("=== YOUR POKEMON'S TYPE DEFENSES ===")
         sections.append(self.state_builder.check_type_advantages(active_name))
 
-        # Available moves
         sections.append("=== AVAILABLE MOVES ===")
         moves = self.state_builder.get_current_moves()
         if moves:
@@ -41,11 +38,9 @@ class AnalysisAgent:
         else:
             sections.append("No moves available")
 
-        # Opponent's active pokemon (includes type advantages via get_opponent_pokemon_details)
         sections.append("=== OPPONENT'S ACTIVE POKEMON ===")
         sections.append(self.state_builder.get_opponent_pokemon_details(opponent_name))
 
-        # Opponent's revealed team (non-active)
         sections.append("=== OPPONENT'S REVEALED TEAM ===")
         revealed = self.state_builder.get_opponent_revealed_team()
         if revealed:
@@ -72,7 +67,6 @@ class AnalysisAgent:
         else:
             sections.append("No other opponent pokemon revealed yet")
 
-        # Your full team
         sections.append("=== YOUR TEAM ===")
         team = self.state_builder.get_team_details()
 
@@ -95,7 +89,7 @@ class AnalysisAgent:
 
         analysis = "\n\n".join(sections)
 
-        print(f"[bold bright_yellow]Analysis Agent\n{analysis}[/bold bright_yellow]")
+        #print(f"[bold bright_yellow]Analysis Agent\n{analysis}[/bold bright_yellow]")
 
         state["analysis"] = analysis
         return state
